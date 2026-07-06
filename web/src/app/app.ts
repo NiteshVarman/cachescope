@@ -12,6 +12,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AnalyticsPanel } from './analytics/analytics-panel';
+import { CacheControlPanel } from './cache-control/cache-control-panel';
 import { ApiService } from './core/api.service';
 import { SignalrService } from './core/signalr.service';
 import {
@@ -23,6 +24,7 @@ import {
   selector: 'app-root',
   imports: [
     AnalyticsPanel,
+    CacheControlPanel,
     DecimalPipe,
     FormsModule,
     MatToolbarModule,

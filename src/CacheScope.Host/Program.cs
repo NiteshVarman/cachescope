@@ -3,6 +3,7 @@ using Azure.Monitor.OpenTelemetry.AspNetCore;
 using CacheScope.Analytics;
 using CacheScope.Api;
 using CacheScope.Api.Endpoints;
+using CacheScope.Cloudflare;
 using CacheScope.Database;
 using CacheScope.Host.HealthChecks;
 using CacheScope.Host.Middleware;
@@ -54,6 +55,7 @@ builder.Services.AddCacheScopePipeline(builder.Configuration);
 builder.Services.AddAnalytics();
 builder.Services.AddRealtime(builder.Configuration);
 builder.Services.AddTrafficGenerator();
+builder.Services.AddCloudflare(builder.Configuration);
 
 // ---------------------------------------------------------------------------
 // Health checks: liveness (process up) + readiness (Redis + SQL reachable).
@@ -107,6 +109,7 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
 app.MapProductEndpoints();
 app.MapTrafficEndpoints();
 app.MapAnalyticsEndpoints();
+app.MapCacheOpsEndpoints();
 app.MapRealtime();
 
 // A Phase 0 diagnostic endpoint proving the full path is wired: it returns the

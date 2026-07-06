@@ -2,7 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { APP_CONFIG } from './config';
-import { AnalyticsSnapshot, TrafficConfig, TrafficRunStatus } from './models';
+import {
+  AnalyticsSnapshot, CacheOpResult, CachePolicySnapshot, TrafficConfig, TrafficRunStatus,
+} from './models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -16,6 +18,28 @@ export class ApiService {
   resetAnalytics(): Promise<void> {
     return firstValueFrom(this.http.post<void>(`${this.config.apiBaseUrl}/api/analytics/reset`, {}));
   }
+
+  // ---- cache policy ----
+  getPolicy(): Promise<CachePolicySnapshot> {
+    return firstValueFrom(this.http.get<CachePolicySnapshot>(`${this.config.apiBaseUrl}/api/policy/`));
+  }
+
+  updatePolicy(patch: Partial<CachePolicySnapshot>): Promise<CachePolicySnapshot> {
+    return firstValueFrom(this.http.put<CachePolicySnapshot>(`${this.config.apiBaseUrl}/api/policy/`, patch));
+  }
+
+  // ---- cache operations ----
+  private op(path: string): Promise<CacheOpResult> {
+    return firstValueFrom(this.http.post<CacheOpResult>(`${this.config.apiBaseUrl}/api/cache/${path}`, {}));
+  }
+  clearMemory() { return this.op('clear-memory'); }
+  clearRedis() { return this.op('clear-redis'); }
+  warmMemory() { return this.op('warm-memory'); }
+  warmRedis() { return this.op('warm-redis'); }
+  flushAll() { return this.op('flush'); }
+  purgeCloudflare() { return this.op('purge-cloudflare'); }
+  expireProduct(id: number) { return this.op(`expire/${id}`); }
+  invalidateProduct(id: number) { return this.op(`invalidate/${id}`); }
 
   startTraffic(cfg: TrafficConfig): Promise<{ runId: string }> {
     return firstValueFrom(this.http.post<{ runId: string }>(`${this.config.apiBaseUrl}/api/traffic/start`, cfg));

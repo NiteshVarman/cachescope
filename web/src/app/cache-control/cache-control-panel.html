@@ -1,0 +1,61 @@
+@let p = policy();
+<div class="cc-grid">
+  <!-- Policies -->
+  <mat-card class="cc">
+    <div class="section-title"><mat-icon>tune</mat-icon> Cache Policies</div>
+    @if (p) {
+      <div class="policy-form">
+        <mat-form-field appearance="outline">
+          <mat-label>Write strategy</mat-label>
+          <mat-select [ngModel]="p.writeStrategy" (ngModelChange)="patch('writeStrategy', $event)">
+            @for (w of writeStrategies; track w) { <mat-option [value]="w">{{ w }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Memory expiration</mat-label>
+          <mat-select [ngModel]="p.memoryExpiration" (ngModelChange)="patch('memoryExpiration', $event)">
+            @for (e of expirationModes; track e) { <mat-option [value]="e">{{ e }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Memory TTL (s)</mat-label>
+          <input matInput type="number" [ngModel]="p.memoryTtlSeconds" (ngModelChange)="patch('memoryTtlSeconds', $event)" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Redis TTL (s)</mat-label>
+          <input matInput type="number" [ngModel]="p.redisTtlSeconds" (ngModelChange)="patch('redisTtlSeconds', $event)" />
+        </mat-form-field>
+      </div>
+      <button matButton="filled" (click)="applyPolicy()"><mat-icon>save</mat-icon> Apply policy</button>
+    }
+  </mat-card>
+
+  <!-- Operations -->
+  <mat-card class="cc">
+    <div class="section-title"><mat-icon>build</mat-icon> Cache Operations</div>
+    <div class="ops">
+      <button matButton="tonal" (click)="clearMemory()" [disabled]="busy()">Clear Memory</button>
+      <button matButton="tonal" (click)="clearRedis()" [disabled]="busy()">Clear Redis</button>
+      <button matButton="tonal" (click)="warmMemory()" [disabled]="busy()">Warm Memory</button>
+      <button matButton="tonal" (click)="warmRedis()" [disabled]="busy()">Warm Redis</button>
+      <button matButton="tonal" (click)="purgeCloudflare()" [disabled]="busy()">Purge Cloudflare</button>
+      <button matButton="filled" class="danger" (click)="flushAll()" [disabled]="busy()">Flush Everything</button>
+    </div>
+
+    <div class="per-key">
+      <mat-form-field appearance="outline" class="idf">
+        <mat-label>Product id</mat-label>
+        <input matInput type="number" [ngModel]="targetId()" (ngModelChange)="targetId.set($event)" />
+      </mat-form-field>
+      <button matButton (click)="expire()" [disabled]="busy()"><mat-icon>timer_off</mat-icon> Expire</button>
+      <button matButton (click)="invalidate()" [disabled]="busy()"><mat-icon>block</mat-icon> Invalidate</button>
+    </div>
+
+    @if (lastResult()) {
+      <div class="op-result"><mat-icon>info</mat-icon> {{ lastResult() }}</div>
+    }
+  </mat-card>
+</div>

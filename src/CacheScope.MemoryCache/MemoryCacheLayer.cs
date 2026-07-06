@@ -1,13 +1,15 @@
+using CacheScope.Shared.Caching;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Options;
 
 namespace CacheScope.MemoryCache;
 
 /// <summary>
-/// Wraps <see cref="IMemoryCache"/>. IMemoryCache has no native "clear all", so every
-/// entry is linked to a shared cancellation token; cancelling it evicts them en masse.
+/// Wraps <see cref="IMemoryCache"/>. TTL and expiration mode come from the runtime
+/// <see cref="ICachePolicy"/> so they can be changed live. IMemoryCache has no native
+/// "clear all", so every entry is linked to a shared cancellation token; cancelling it
+/// evicts them en masse.
 /// </summary>
-public sealed class MemoryCacheLayer(IMemoryCache cache, IOptionsMonitor<MemoryCacheLayerOptions> options)
+public sealed class MemoryCacheLayer(IMemoryCache cache, ICachePolicy policy)
     : IMemoryCacheLayer, IDisposable
 {
     private readonly Lock _resetLock = new();
@@ -27,12 +29,16 @@ public sealed class MemoryCacheLayer(IMemoryCache cache, IOptionsMonitor<MemoryC
 
     public void Set<T>(string key, T value, TimeSpan? ttl = null)
     {
-        var opts = options.CurrentValue;
-        var entryOptions = new MemoryCacheEntryOptions
+        var effectiveTtl = ttl ?? policy.MemoryTtl;
+        var entryOptions = new MemoryCacheEntryOptions();
+        if (policy.MemoryExpiration == ExpirationMode.Sliding)
         {
-            AbsoluteExpirationRelativeToNow = ttl ?? opts.DefaultTtl,
-            SlidingExpiration = opts.SlidingExpiration
-        };
+            entryOptions.SlidingExpiration = effectiveTtl;
+        }
+        else
+        {
+            entryOptions.AbsoluteExpirationRelativeToNow = effectiveTtl;
+        }
 
         // Link to the current reset token so Clear() can evict this entry.
         CancellationTokenSource cts;

@@ -1,0 +1,58 @@
+:host { display: block; }
+
+.cc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.cc { padding: 16px; }
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 15px;
+  margin-bottom: 14px;
+  mat-icon { color: #22d3ee; }
+}
+
+.policy-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  margin-bottom: 6px;
+}
+.policy-form mat-form-field { margin-bottom: -18px; }
+
+.ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+  .danger { --mat-sys-primary: #d64545; }
+}
+
+.per-key {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  .idf { width: 120px; margin-bottom: -18px; }
+}
+
+.op-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: rgba(34, 211, 238, 0.1);
+  border-radius: 8px;
+  font-size: 13px;
+  mat-icon { font-size: 18px; height: 18px; width: 18px; color: #67e8f9; }
+}
+
+@media (max-width: 720px) {
+  .cc-grid { grid-template-columns: 1fr; }
+  .policy-form { grid-template-columns: 1fr; }
+}

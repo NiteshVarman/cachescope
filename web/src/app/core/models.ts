@@ -92,6 +92,26 @@ export const TRAFFIC_PATTERNS: TrafficPattern[] = [
 ];
 export const KEY_SELECTIONS: KeySelectionMode[] = ['SingleHotKey', 'TopNHotKeys', 'Random', 'Sequential'];
 
+// ---- Cache policy & operations (mirror CacheScope.Shared.Caching / .Operations) ----
+export type ExpirationMode = 'Absolute' | 'Sliding';
+export type WriteStrategy = 'CacheAside' | 'WriteThrough' | 'WriteBehind' | 'RefreshAhead';
+
+export interface CachePolicySnapshot {
+  memoryTtlSeconds: number;
+  redisTtlSeconds: number;
+  memoryExpiration: ExpirationMode;
+  writeStrategy: WriteStrategy;
+}
+
+export interface CacheOpResult {
+  operation: string;
+  message: string;
+  affected: number;
+}
+
+export const WRITE_STRATEGIES: WriteStrategy[] = ['CacheAside', 'WriteThrough', 'WriteBehind', 'RefreshAhead'];
+export const EXPIRATION_MODES: ExpirationMode[] = ['Absolute', 'Sliding'];
+
 export const LAYER_ORDER: CacheLayer[] = ['Cloudflare', 'Browser', 'Memory', 'Redis', 'Database'];
 
 // Colour per layer, reused by chips and (Phase 4) charts.

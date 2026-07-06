@@ -4,6 +4,12 @@
     <ProjectReference Include="..\CacheScope.Shared\CacheScope.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
+  </ItemGroup>
+
   <PropertyGroup>
   </PropertyGroup>
 

@@ -1,10 +1,11 @@
 using System.Text.Json;
+using CacheScope.Shared.Caching;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace CacheScope.RedisCache;
 
-public sealed class RedisCacheLayer(IConnectionMultiplexer mux, IOptions<RedisCacheOptions> options)
+public sealed class RedisCacheLayer(IConnectionMultiplexer mux, IOptions<RedisCacheOptions> options, ICachePolicy policy)
     : IRedisCacheLayer
 {
     private readonly RedisCacheOptions _options = options.Value;
@@ -28,7 +29,7 @@ public sealed class RedisCacheLayer(IConnectionMultiplexer mux, IOptions<RedisCa
     public async Task SetAsync<T>(string key, T value, TimeSpan? ttl = null, CancellationToken ct = default)
     {
         var payload = JsonSerializer.Serialize(value, Json);
-        await mux.GetDatabase().StringSetAsync(Prefixed(key), payload, ttl ?? _options.DefaultTtl);
+        await mux.GetDatabase().StringSetAsync(Prefixed(key), payload, ttl ?? policy.RedisTtl);
     }
 
     public Task RemoveAsync(string key, CancellationToken ct = default) =>
