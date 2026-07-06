@@ -109,6 +109,19 @@ export interface CacheOpResult {
   affected: number;
 }
 
+export interface StampedeScenario {
+  protectionEnabled: boolean;
+  concurrency: number;
+  databaseQueries: number;
+  durationMs: number;
+}
+
+export interface StampedeResult {
+  hotKeyId: number;
+  unprotected: StampedeScenario;
+  protected: StampedeScenario;
+}
+
 export const WRITE_STRATEGIES: WriteStrategy[] = ['CacheAside', 'WriteThrough', 'WriteBehind', 'RefreshAhead'];
 export const EXPIRATION_MODES: ExpirationMode[] = ['Absolute', 'Sliding'];
 

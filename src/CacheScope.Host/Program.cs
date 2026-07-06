@@ -110,6 +110,7 @@ app.MapProductEndpoints();
 app.MapTrafficEndpoints();
 app.MapAnalyticsEndpoints();
 app.MapCacheOpsEndpoints();
+app.MapStampedeEndpoints();
 app.MapRealtime();
 
 // A Phase 0 diagnostic endpoint proving the full path is wired: it returns the

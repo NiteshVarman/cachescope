@@ -17,6 +17,7 @@ public sealed class ProductCacheService(
     ICachePolicy policy,
     IWriteBehindQueue writeBehind,
     RefreshAheadScheduler refreshAhead,
+    SingleFlight singleFlight,
     ILogger<ProductCacheService> logger) : IProductCacheService
 {
     private static string Key(int id) => ProductKeys.For(id);
@@ -53,17 +54,26 @@ public sealed class ProductCacheService(
             return CacheReadResult<Product>.Hit(fromRedis, CacheLayer.Redis);
         }
 
-        // L4 — database (source of truth). The query is recorded inside the store.
-        var fromDb = await store.GetByIdAsync(id, ct);
-        if (fromDb is null)
-        {
-            return CacheReadResult<Product>.NotFound();
-        }
+        // L4 — database (source of truth). With stampede protection on, concurrent misses
+        // for this key coalesce into a single DB load; otherwise each miss queries the DB.
+        var fromDb = policy.StampedeProtection
+            ? await singleFlight.RunAsync(key, () => LoadAndPopulateAsync(id, key, refreshAheadOn, ct))
+            : await LoadAndPopulateAsync(id, key, refreshAheadOn, ct);
 
-        await TrySetRedisAsync(key, fromDb, ct);   // repopulate L3
-        memory.Set(key, fromDb);                    // repopulate L2
+        return fromDb is null
+            ? CacheReadResult<Product>.NotFound()
+            : CacheReadResult<Product>.Hit(fromDb, CacheLayer.Database);
+    }
+
+    private async Task<Product?> LoadAndPopulateAsync(int id, string key, bool refreshAheadOn, CancellationToken ct)
+    {
+        var fromDb = await store.GetByIdAsync(id, ct);   // the query is recorded inside the store
+        if (fromDb is null) return null;
+
+        await TrySetRedisAsync(key, fromDb, ct);          // repopulate L3
+        memory.Set(key, fromDb);                          // repopulate L2
         if (refreshAheadOn) refreshAhead.RecordLoad(id);
-        return CacheReadResult<Product>.Hit(fromDb, CacheLayer.Database);
+        return fromDb;
     }
 
     public Task<IReadOnlyList<int>> GetIdsAsync(CancellationToken ct = default) => store.GetAllIdsAsync(ct);

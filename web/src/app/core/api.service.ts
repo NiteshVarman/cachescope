@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { APP_CONFIG } from './config';
 import {
-  AnalyticsSnapshot, CacheOpResult, CachePolicySnapshot, TrafficConfig, TrafficRunStatus,
+  AnalyticsSnapshot, CacheOpResult, CachePolicySnapshot, StampedeResult, TrafficConfig, TrafficRunStatus,
 } from './models';
 
 @Injectable({ providedIn: 'root' })
@@ -40,6 +40,12 @@ export class ApiService {
   purgeCloudflare() { return this.op('purge-cloudflare'); }
   expireProduct(id: number) { return this.op(`expire/${id}`); }
   invalidateProduct(id: number) { return this.op(`invalidate/${id}`); }
+
+  runStampede(hotKeyId: number, concurrency: number): Promise<StampedeResult> {
+    return firstValueFrom(
+      this.http.post<StampedeResult>(
+        `${this.config.apiBaseUrl}/api/stampede?hotKeyId=${hotKeyId}&concurrency=${concurrency}`, {}));
+  }
 
   startTraffic(cfg: TrafficConfig): Promise<{ runId: string }> {
     return firstValueFrom(this.http.post<{ runId: string }>(`${this.config.apiBaseUrl}/api/traffic/start`, cfg));

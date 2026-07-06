@@ -13,6 +13,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AnalyticsPanel } from './analytics/analytics-panel';
 import { CacheControlPanel } from './cache-control/cache-control-panel';
+import { StampedePanel } from './stampede/stampede-panel';
 import { ApiService } from './core/api.service';
 import { SignalrService } from './core/signalr.service';
 import {
@@ -25,6 +26,7 @@ import {
   imports: [
     AnalyticsPanel,
     CacheControlPanel,
+    StampedePanel,
     DecimalPipe,
     FormsModule,
     MatToolbarModule,

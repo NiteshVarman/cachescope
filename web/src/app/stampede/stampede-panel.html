@@ -1,0 +1,50 @@
+<mat-card class="stampede">
+  <div class="section-title"><mat-icon>bolt</mat-icon> Cache Stampede Demo</div>
+  <p class="blurb">
+    Expire one hot key, then fire N concurrent requests at it. Without protection every
+    request misses and hits the database; with <strong>single-flight</strong> they coalesce
+    into a single load.
+  </p>
+
+  <div class="controls">
+    <mat-form-field appearance="outline" class="sm">
+      <mat-label>Hot key id</mat-label>
+      <input matInput type="number" [ngModel]="hotKeyId()" (ngModelChange)="hotKeyId.set($event)" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="sm">
+      <mat-label>Concurrency</mat-label>
+      <input matInput type="number" [ngModel]="concurrency()" (ngModelChange)="concurrency.set($event)" />
+    </mat-form-field>
+    <button matButton="filled" (click)="run()" [disabled]="running()">
+      <mat-icon>play_arrow</mat-icon> {{ running() ? 'Running…' : 'Run demo' }}
+    </button>
+  </div>
+
+  @if (running()) { <mat-progress-bar mode="indeterminate"></mat-progress-bar> }
+  @if (error()) { <div class="err">{{ error() }}</div> }
+
+  @let r = result();
+  @if (r) {
+    <div class="compare">
+      <div class="scenario bad">
+        <div class="s-head"><mat-icon>warning</mat-icon> Without protection</div>
+        <div class="s-bar"><div class="s-fill" [style.width.%]="barWidth(r.unprotected.databaseQueries)"></div></div>
+        <div class="s-metric">{{ r.unprotected.databaseQueries | number }} <small>DB queries</small></div>
+        <div class="s-sub">{{ r.unprotected.durationMs | number: '1.0-0' }} ms · {{ r.unprotected.concurrency | number }} requests</div>
+      </div>
+
+      <div class="scenario good">
+        <div class="s-head"><mat-icon>verified_user</mat-icon> With single-flight</div>
+        <div class="s-bar"><div class="s-fill" [style.width.%]="barWidth(r.protected.databaseQueries)"></div></div>
+        <div class="s-metric">{{ r.protected.databaseQueries | number }} <small>DB query</small></div>
+        <div class="s-sub">{{ r.protected.durationMs | number: '1.0-0' }} ms · {{ r.protected.concurrency | number }} requests</div>
+      </div>
+    </div>
+
+    <div class="verdict">
+      Single-flight prevented
+      <strong>{{ r.unprotected.databaseQueries - r.protected.databaseQueries | number }}</strong>
+      database queries for hot key #{{ r.hotKeyId }}.
+    </div>
+  }
+</mat-card>

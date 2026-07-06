@@ -40,6 +40,10 @@ public static class ApiServiceCollectionExtensions
         services.AddHostedService<WriteBehindFlusher>();
         services.AddSingleton<RefreshAheadScheduler>();
 
+        // Single-flight coalescer + the stampede demo runner.
+        services.AddSingleton<SingleFlight>();
+        services.AddSingleton<StampedeRunner>();
+
         return services;
     }
 }

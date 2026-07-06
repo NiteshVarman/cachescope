@@ -30,6 +30,9 @@ public sealed record CachePolicySnapshot
     public double RedisTtlSeconds { get; init; }
     public ExpirationMode MemoryExpiration { get; init; }
     public WriteStrategy WriteStrategy { get; init; }
+
+    /// <summary>Whether concurrent misses for the same key coalesce into one DB load (single-flight).</summary>
+    public bool StampedeProtection { get; init; }
 }
 
 /// <summary>A partial update to the cache policy; only non-null fields are applied.</summary>
@@ -39,6 +42,7 @@ public sealed record CachePolicyUpdate
     public double? RedisTtlSeconds { get; init; }
     public ExpirationMode? MemoryExpiration { get; init; }
     public WriteStrategy? WriteStrategy { get; init; }
+    public bool? StampedeProtection { get; init; }
 }
 
 /// <summary>
@@ -51,6 +55,7 @@ public interface ICachePolicy
     TimeSpan RedisTtl { get; }
     ExpirationMode MemoryExpiration { get; }
     WriteStrategy WriteStrategy { get; }
+    bool StampedeProtection { get; }
 
     CachePolicySnapshot Snapshot();
     CachePolicySnapshot Apply(CachePolicyUpdate update);
