@@ -27,6 +27,27 @@ export interface LiveStatsSnapshot {
   cacheHitRatio: number;
   averageLatencyMs: number;
   peakLatencyMs: number;
+  p50LatencyMs: number;
+  p95LatencyMs: number;
+  p99LatencyMs: number;
+  cfCacheStatusCounts: Record<string, number>;
+  edgeHitRatio: number;
+}
+
+export interface MetricsTimelinePoint {
+  timestamp: string;
+  requestsPerSecond: number;
+  averageLatencyMs: number;
+  cacheHitRatio: number;
+  databaseQueriesPerSecond: number;
+}
+
+export interface AnalyticsSnapshot {
+  stats: LiveStatsSnapshot;
+  databaseQueriesExecuted: number;
+  databaseQueriesPrevented: number;
+  databaseAverageQueryTimeMs: number;
+  timeline: MetricsTimelinePoint[];
 }
 
 // ---- Traffic generator contracts (mirror CacheScope.Shared.Traffic) ----

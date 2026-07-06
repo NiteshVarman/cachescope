@@ -1,0 +1,94 @@
+@let snap = snapshot();
+@let s = snap?.stats;
+
+<div class="analytics-head">
+  <div class="section-title"><mat-icon>insights</mat-icon> Cache Analytics</div>
+  <button matButton (click)="reset()"><mat-icon>restart_alt</mat-icon> Reset counters</button>
+</div>
+
+<!-- Metric cards -->
+<section class="metric-cards">
+  <mat-card class="m"><span>Total</span><b>{{ s?.totalRequests ?? 0 | number }}</b></mat-card>
+  <mat-card class="m"><span>DB Queries Prevented</span><b class="good">{{ snap?.databaseQueriesPrevented ?? 0 | number }}</b></mat-card>
+  <mat-card class="m"><span>DB Queries Executed</span><b>{{ snap?.databaseQueriesExecuted ?? 0 | number }}</b></mat-card>
+  <mat-card class="m"><span>Avg Query Time</span><b>{{ snap?.databaseAverageQueryTimeMs ?? 0 | number: '1.0-1' }}<small> ms</small></b></mat-card>
+  <mat-card class="m"><span>P50</span><b>{{ s?.p50LatencyMs ?? 0 | number: '1.0-1' }}<small> ms</small></b></mat-card>
+  <mat-card class="m"><span>P95</span><b>{{ s?.p95LatencyMs ?? 0 | number: '1.0-1' }}<small> ms</small></b></mat-card>
+  <mat-card class="m"><span>P99</span><b>{{ s?.p99LatencyMs ?? 0 | number: '1.0-1' }}<small> ms</small></b></mat-card>
+  <mat-card class="m"><span>Edge Hit Ratio</span><b>{{ (s?.edgeHitRatio ?? 0) * 100 | number: '1.0-1' }}%</b></mat-card>
+</section>
+
+<div class="chart-grid">
+  <!-- Donut: request distribution -->
+  <mat-card class="chart">
+    <div class="chart-title">Request Distribution</div>
+    <div class="donut-wrap">
+      <div class="donut" [style.background]="donutGradient()"><div class="donut-hole"></div></div>
+      <div class="legend">
+        @for (r of layerRows(); track r.layer) {
+          <div class="legend-row">
+            <span class="dot" [style.background]="r.color"></span>
+            <span class="ln">{{ r.layer }}</span>
+            <span class="lc">{{ r.count | number }} · {{ r.pct | number: '1.0-1' }}%</span>
+          </div>
+        }
+      </div>
+    </div>
+  </mat-card>
+
+  <!-- Gauge: cache hit ratio -->
+  <mat-card class="chart">
+    <div class="chart-title">Cache Hit Ratio</div>
+    <div class="gauge-wrap">
+      <div class="gauge" [style.background]="gaugeGradient()">
+        <div class="gauge-hole"><span>{{ hitRatio() | number: '1.0-1' }}%</span></div>
+      </div>
+    </div>
+  </mat-card>
+
+  <!-- Bars: served by each layer -->
+  <mat-card class="chart wide">
+    <div class="chart-title">Requests Served by Each Layer</div>
+    <div class="bars">
+      @for (r of layerRows(); track r.layer) {
+        <div class="bar-row">
+          <span class="bar-label">{{ r.layer }}</span>
+          <div class="bar-track"><div class="bar-fill" [style.width.%]="r.pct" [style.background]="r.color"></div></div>
+          <span class="bar-val">{{ r.count | number }}</span>
+        </div>
+      }
+    </div>
+  </mat-card>
+
+  <!-- Line: latency over time -->
+  <mat-card class="chart wide">
+    <div class="chart-title">Latency over time <small>(max {{ latencySeries().max | number: '1.0-0' }} ms)</small></div>
+    <svg class="ts" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH" preserveAspectRatio="none">
+      <polygon [attr.points]="latencySeries().area" fill="rgba(91,141,239,0.18)" />
+      <polyline [attr.points]="latencySeries().line" fill="none" stroke="#5b8def" stroke-width="1.5" />
+    </svg>
+  </mat-card>
+
+  <!-- Area: requests per second -->
+  <mat-card class="chart wide">
+    <div class="chart-title">Requests per second <small>(max {{ rpsSeries().max | number: '1.0-0' }})</small></div>
+    <svg class="ts" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH" preserveAspectRatio="none">
+      <polygon [attr.points]="rpsSeries().area" fill="rgba(62,207,142,0.18)" />
+      <polyline [attr.points]="rpsSeries().line" fill="none" stroke="#3ecf8e" stroke-width="1.5" />
+    </svg>
+  </mat-card>
+
+  <!-- Cloudflare CF-Cache-Status breakdown -->
+  <mat-card class="chart">
+    <div class="chart-title">CF-Cache-Status</div>
+    @if (cfEntries().length) {
+      <div class="cf-list">
+        @for (e of cfEntries(); track e.status) {
+          <div class="cf-row"><span>{{ e.status }}</span><b>{{ e.count | number }}</b></div>
+        }
+      </div>
+    } @else {
+      <div class="cf-empty">No edge traffic yet — Cloudflare status appears once requests arrive through the CDN.</div>
+    }
+  </mat-card>
+</div>

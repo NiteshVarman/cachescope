@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using CacheScope.Shared;
 using CacheScope.Shared.Analytics;
 using CacheScope.Shared.Tracing;
@@ -16,9 +17,17 @@ public sealed class LiveStats : ILiveStats
     private long _latencySumMicros; // sum of latencies in microseconds for exact Interlocked math
     private long _peakMicros;
 
+    private readonly LatencyHistogram _histogram = new();
+    private readonly ConcurrentDictionary<string, long> _cfCounts = new();
+
     public void Record(RequestTrace trace)
     {
         Interlocked.Increment(ref _total);
+
+        _histogram.Record(trace.ResponseTimeMs);
+
+        var cf = string.IsNullOrWhiteSpace(trace.CfCacheStatus) ? "NONE" : trace.CfCacheStatus.ToUpperInvariant();
+        _cfCounts.AddOrUpdate(cf, 1, (_, v) => v + 1);
 
         switch (trace.ServedBy)
         {
@@ -64,6 +73,10 @@ public sealed class LiveStats : ILiveStats
 
         var cacheHits = cloudflare + browser + memory + redis;
 
+        var cfCounts = _cfCounts.ToDictionary(kv => kv.Key, kv => kv.Value);
+        var cfWithStatus = cfCounts.Where(kv => kv.Key != "NONE").Sum(kv => kv.Value);
+        var cfHit = cfCounts.GetValueOrDefault("HIT");
+
         return new LiveStatsSnapshot
         {
             TotalRequests = total,
@@ -75,7 +88,12 @@ public sealed class LiveStats : ILiveStats
             FailedRequests = Interlocked.Read(ref _failed),
             CacheHitRatio = total == 0 ? 0 : (double)cacheHits / total,
             AverageLatencyMs = total == 0 ? 0 : latencySum / total,
-            PeakLatencyMs = Interlocked.Read(ref _peakMicros) / 1000.0
+            PeakLatencyMs = Interlocked.Read(ref _peakMicros) / 1000.0,
+            P50LatencyMs = _histogram.Percentile(0.50),
+            P95LatencyMs = _histogram.Percentile(0.95),
+            P99LatencyMs = _histogram.Percentile(0.99),
+            CfCacheStatusCounts = cfCounts,
+            EdgeHitRatio = cfWithStatus == 0 ? 0 : (double)cfHit / cfWithStatus
         };
     }
 
@@ -90,5 +108,7 @@ public sealed class LiveStats : ILiveStats
         Interlocked.Exchange(ref _failed, 0);
         Interlocked.Exchange(ref _latencySumMicros, 0);
         Interlocked.Exchange(ref _peakMicros, 0);
+        _histogram.Reset();
+        _cfCounts.Clear();
     }
 }

@@ -13,6 +13,7 @@ public sealed class TraceHub(ILiveStats stats) : Hub
 {
     public const string ReceiveTraces = "ReceiveTraces";
     public const string ReceiveStats = "ReceiveStats";
+    public const string ReceiveTimeline = "ReceiveTimeline";
 
     public override async Task OnConnectedAsync()
     {

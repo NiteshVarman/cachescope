@@ -106,6 +106,7 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
 // The product cache pipeline endpoints, traffic generator, and the SignalR hub.
 app.MapProductEndpoints();
 app.MapTrafficEndpoints();
+app.MapAnalyticsEndpoints();
 app.MapRealtime();
 
 // A Phase 0 diagnostic endpoint proving the full path is wired: it returns the

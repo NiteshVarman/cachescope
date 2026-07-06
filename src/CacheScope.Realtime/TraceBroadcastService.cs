@@ -17,6 +17,8 @@ public sealed class TraceBroadcastService(
     SignalRTraceSink sink,
     IHubContext<TraceHub> hub,
     ILiveStats stats,
+    IDatabaseMetrics dbMetrics,
+    IMetricsTimeline timeline,
     IOptions<RealtimeOptions> options,
     ILogger<TraceBroadcastService> logger) : BackgroundService
 {
@@ -26,7 +28,50 @@ public sealed class TraceBroadcastService(
     {
         var traceLoop = BroadcastTracesAsync(stoppingToken);
         var statsLoop = BroadcastStatsAsync(stoppingToken);
-        await Task.WhenAll(traceLoop, statsLoop);
+        var timelineLoop = SampleTimelineAsync(stoppingToken);
+        await Task.WhenAll(traceLoop, statsLoop, timelineLoop);
+    }
+
+    // Once per second, derive per-second RPS / windowed latency / DB QPS from the
+    // cumulative counters, append a timeline point, and broadcast it for the charts.
+    private async Task SampleTimelineAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        var prevTotal = 0L;
+        var prevLatencySum = 0.0;
+        var prevDbQueries = 0L;
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                var s = stats.Snapshot();
+                var dbQueries = dbMetrics.QueriesExecuted;
+
+                var deltaTotal = s.TotalRequests - prevTotal;
+                var cumLatencySum = s.AverageLatencyMs * s.TotalRequests;
+                var windowLatencySum = cumLatencySum - prevLatencySum;
+
+                var point = new MetricsTimelinePoint
+                {
+                    Timestamp = DateTimeOffset.UtcNow,
+                    RequestsPerSecond = deltaTotal,
+                    AverageLatencyMs = deltaTotal <= 0 ? 0 : windowLatencySum / deltaTotal,
+                    CacheHitRatio = s.CacheHitRatio,
+                    DatabaseQueriesPerSecond = dbQueries - prevDbQueries
+                };
+                timeline.Add(point);
+                await hub.Clients.All.SendAsync(TraceHub.ReceiveTimeline, point, ct);
+
+                prevTotal = s.TotalRequests;
+                prevLatencySum = cumLatencySum;
+                prevDbQueries = dbQueries;
+            }
+        }
+        catch (OperationCanceledException) { /* shutting down */ }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Timeline sampling loop failed");
+        }
     }
 
     private async Task BroadcastTracesAsync(CancellationToken ct)

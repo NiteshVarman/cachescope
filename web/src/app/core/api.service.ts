@@ -2,12 +2,20 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { APP_CONFIG } from './config';
-import { TrafficConfig, TrafficRunStatus } from './models';
+import { AnalyticsSnapshot, TrafficConfig, TrafficRunStatus } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly config = inject(APP_CONFIG);
+
+  getAnalytics(): Promise<AnalyticsSnapshot> {
+    return firstValueFrom(this.http.get<AnalyticsSnapshot>(`${this.config.apiBaseUrl}/api/analytics/`));
+  }
+
+  resetAnalytics(): Promise<void> {
+    return firstValueFrom(this.http.post<void>(`${this.config.apiBaseUrl}/api/analytics/reset`, {}));
+  }
 
   startTraffic(cfg: TrafficConfig): Promise<{ runId: string }> {
     return firstValueFrom(this.http.post<{ runId: string }>(`${this.config.apiBaseUrl}/api/traffic/start`, cfg));

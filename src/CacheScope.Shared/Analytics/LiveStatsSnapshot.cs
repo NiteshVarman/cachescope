@@ -18,4 +18,15 @@ public sealed record LiveStatsSnapshot
 
     public double AverageLatencyMs { get; init; }
     public double PeakLatencyMs { get; init; }
+
+    public double P50LatencyMs { get; init; }
+    public double P95LatencyMs { get; init; }
+    public double P99LatencyMs { get; init; }
+
+    /// <summary>Tally of observed CF-Cache-Status header values (HIT/MISS/EXPIRED/DYNAMIC/BYPASS/NONE).</summary>
+    public IReadOnlyDictionary<string, long> CfCacheStatusCounts { get; init; } =
+        new Dictionary<string, long>();
+
+    /// <summary>Cloudflare edge hit ratio (CF HIT / requests with a CF status), 0..1.</summary>
+    public double EdgeHitRatio { get; init; }
 }
