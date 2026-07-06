@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using CacheScope.Database;
 using CacheScope.MemoryCache;
 using CacheScope.RedisCache;
@@ -5,6 +6,7 @@ using CacheScope.Shared;
 using CacheScope.Shared.Analytics;
 using CacheScope.Shared.Caching;
 using CacheScope.Shared.Models;
+using CacheScope.Shared.Tracing;
 using Microsoft.Extensions.Logging;
 
 namespace CacheScope.Api.Caching;
@@ -18,6 +20,7 @@ public sealed class ProductCacheService(
     IWriteBehindQueue writeBehind,
     RefreshAheadScheduler refreshAhead,
     SingleFlight singleFlight,
+    ActivitySource activitySource,
     ILogger<ProductCacheService> logger) : IProductCacheService
 {
     private static string Key(int id) => ProductKeys.For(id);
@@ -26,44 +29,68 @@ public sealed class ProductCacheService(
     {
         var key = Key(id);
         var refreshAheadOn = policy.WriteStrategy == WriteStrategy.RefreshAhead;
+        var segments = new List<LayerTiming>(3);
 
-        // L2 — memory
-        if (memory.TryGet<Product>(key, out var fromMemory) && fromMemory is not null)
+        // L2 — memory (each layer is a span so the distributed trace mirrors the pipeline)
+        var sw = Stopwatch.GetTimestamp();
+        Product? fromMemory;
+        using (activitySource.StartActivity("cache.memory"))
         {
+            memory.TryGet(key, out fromMemory);
+        }
+        var memMs = Stopwatch.GetElapsedTime(sw).TotalMilliseconds;
+        if (fromMemory is not null)
+        {
+            segments.Add(new LayerTiming { Layer = CacheLayer.Memory, Ms = memMs, Outcome = CacheOutcome.Hit });
             dbMetrics.RecordPrevented();
             if (refreshAheadOn) refreshAhead.MaybeSchedule(id, policy.MemoryTtl);
-            return CacheReadResult<Product>.Hit(fromMemory, CacheLayer.Memory);
+            return Hit(fromMemory, CacheLayer.Memory, segments);
         }
+        segments.Add(new LayerTiming { Layer = CacheLayer.Memory, Ms = memMs, Outcome = CacheOutcome.Miss });
 
         // L3 — Redis (tolerate an unavailable Redis by falling through to the DB)
+        sw = Stopwatch.GetTimestamp();
         Product? fromRedis = null;
-        try
+        using (activitySource.StartActivity("cache.redis"))
         {
-            fromRedis = await redis.GetAsync<Product>(key, ct);
+            try { fromRedis = await redis.GetAsync<Product>(key, ct); }
+            catch (Exception ex) { logger.LogWarning(ex, "Redis read failed for {Key}; falling through", key); }
         }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Redis read failed for {Key}; falling through to database", key);
-        }
-
+        var redisMs = Stopwatch.GetElapsedTime(sw).TotalMilliseconds;
         if (fromRedis is not null)
         {
+            segments.Add(new LayerTiming { Layer = CacheLayer.Redis, Ms = redisMs, Outcome = CacheOutcome.Hit });
             memory.Set(key, fromRedis);            // repopulate L2
             if (refreshAheadOn) refreshAhead.RecordLoad(id);
             dbMetrics.RecordPrevented();
-            return CacheReadResult<Product>.Hit(fromRedis, CacheLayer.Redis);
+            return Hit(fromRedis, CacheLayer.Redis, segments);
         }
+        segments.Add(new LayerTiming { Layer = CacheLayer.Redis, Ms = redisMs, Outcome = CacheOutcome.Miss });
 
-        // L4 — database (source of truth). With stampede protection on, concurrent misses
-        // for this key coalesce into a single DB load; otherwise each miss queries the DB.
-        var fromDb = policy.StampedeProtection
-            ? await singleFlight.RunAsync(key, () => LoadAndPopulateAsync(id, key, refreshAheadOn, ct))
-            : await LoadAndPopulateAsync(id, key, refreshAheadOn, ct);
+        // L4 — database. With stampede protection on, concurrent misses coalesce into one load.
+        sw = Stopwatch.GetTimestamp();
+        Product? fromDb;
+        using (activitySource.StartActivity("cache.database"))
+        {
+            fromDb = policy.StampedeProtection
+                ? await singleFlight.RunAsync(key, () => LoadAndPopulateAsync(id, key, refreshAheadOn, ct))
+                : await LoadAndPopulateAsync(id, key, refreshAheadOn, ct);
+        }
+        var dbMs = Stopwatch.GetElapsedTime(sw).TotalMilliseconds;
+        segments.Add(new LayerTiming
+        {
+            Layer = CacheLayer.Database,
+            Ms = dbMs,
+            Outcome = fromDb is null ? CacheOutcome.Miss : CacheOutcome.Hit
+        });
 
         return fromDb is null
-            ? CacheReadResult<Product>.NotFound()
-            : CacheReadResult<Product>.Hit(fromDb, CacheLayer.Database);
+            ? (CacheReadResult<Product>.NotFound() with { Segments = segments })
+            : Hit(fromDb, CacheLayer.Database, segments);
     }
+
+    private static CacheReadResult<Product> Hit(Product value, CacheLayer layer, List<LayerTiming> segments) =>
+        CacheReadResult<Product>.Hit(value, layer) with { Segments = segments };
 
     private async Task<Product?> LoadAndPopulateAsync(int id, string key, bool refreshAheadOn, CancellationToken ct)
     {

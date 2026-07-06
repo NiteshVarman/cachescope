@@ -202,7 +202,7 @@
         </thead>
         <tbody>
           @for (t of filteredTraces(); track t.requestId) {
-            <tr>
+            <tr class="clickable" (click)="openDetail(t)">
               <td class="c-id">{{ t.requestId }}</td>
               <td class="c-method">{{ t.method }}</td>
               <td class="c-path">{{ t.path }}</td>
@@ -225,3 +225,47 @@
   <!-- ===================== Analytics & charts ===================== -->
   <app-analytics-panel />
 </div>
+
+<!-- ===================== Per-request detail (observability) ===================== -->
+@let d = detail();
+@if (d) {
+  <div class="detail-overlay" (click)="closeDetail()">
+    <div class="detail-panel" (click)="$event.stopPropagation()">
+      <div class="detail-head">
+        <span>Request #{{ d.requestId }} · {{ d.method }} {{ d.path }}</span>
+        <button matButton (click)="closeDetail()"><mat-icon>close</mat-icon></button>
+      </div>
+
+      <div class="detail-meta">
+        <div><span>Served by</span><b>{{ d.servedBy }}</b></div>
+        <div><span>Total</span><b>{{ d.totalMs | number: '1.0-2' }} ms</b></div>
+        <div><span>Status</span><b>{{ d.statusCode }}</b></div>
+        <div><span>Source</span><b>{{ d.source || 'Http' }}</b></div>
+      </div>
+
+      <div class="detail-ids">
+        <div><span>Correlation Id</span><code>{{ d.correlationId }}</code></div>
+        <div><span>Trace Id</span><code>{{ d.traceId || '—' }}</code></div>
+      </div>
+
+      <div class="waterfall-title">Layer timeline</div>
+      <div class="waterfall">
+        @for (seg of d.segments; track seg.layer) {
+          <div class="wf-row">
+            <span class="wf-layer">{{ seg.layer }}</span>
+            <div class="wf-track">
+              <div class="wf-bar" [style.width.%]="segmentWidth(seg.ms)"
+                   [style.background]="layerColor[seg.layer]"
+                   [class.miss]="seg.outcome === 'Miss'"></div>
+            </div>
+            <span class="wf-ms">{{ seg.ms | number: '1.0-2' }} ms · {{ seg.outcome }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="detail-note">
+        Spans are also exported to Application Insights under this trace id when telemetry is configured.
+      </div>
+    </div>
+  </div>
+}

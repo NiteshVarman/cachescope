@@ -157,7 +157,7 @@ public sealed class TrafficRunner(
                     if (universe.Count > 0)
                     {
                         var exec = s.GetRequiredService<IRequestExecutor>();
-                        await exec.GetProductAsync(universe[0], config.Mode.ToString(), ct);
+                        await exec.GetProductAsync(universe[0], config.Mode.ToString(), ct: ct);
                         await s.GetRequiredService<ITrafficSupport>().ExpireAsync(universe[0], ct);
                     }
                     return true;
@@ -175,7 +175,7 @@ public sealed class TrafficRunner(
             var universe = await support.GetKeyUniverseAsync(ct);
             foreach (var id in universe)
             {
-                await exec.GetProductAsync(id, config.Mode.ToString(), ct);
+                await exec.GetProductAsync(id, config.Mode.ToString(), ct: ct);
             }
             return true;
         });
@@ -234,8 +234,8 @@ public sealed class TrafficRunner(
             using var scope = scopeFactory.CreateScope();
             var exec = scope.ServiceProvider.GetRequiredService<IRequestExecutor>();
             var result = isGet
-                ? await exec.GetProductAsync(id, config.Mode.ToString(), ct)
-                : await exec.UpdateProductAsync(id, RandomPrice(), config.Mode.ToString(), ct);
+                ? await exec.GetProductAsync(id, config.Mode.ToString(), ct: ct)
+                : await exec.UpdateProductAsync(id, RandomPrice(), config.Mode.ToString(), ct: ct);
             _metrics.Complete(result.Trace.ResponseTimeMs, failed: result.Trace.StatusCode >= 500);
         }
         catch (OperationCanceledException)

@@ -18,7 +18,7 @@ import { ApiService } from './core/api.service';
 import { SignalrService } from './core/signalr.service';
 import {
   CacheLayer, KEY_SELECTIONS, LAYER_COLOR, LAYER_ORDER,
-  RequestTrace, TRAFFIC_PATTERNS, TrafficConfig,
+  RequestDetail, RequestTrace, TRAFFIC_PATTERNS, TrafficConfig,
 } from './core/models';
 
 @Component({
@@ -141,5 +141,31 @@ export class App implements OnInit {
     if (code >= 400) return 'status-warn';
     if (code === 304) return 'status-304';
     return 'status-ok';
+  }
+
+  // ---- per-request detail (observability waterfall) ----
+  readonly detail = signal<RequestDetail | null>(null);
+  readonly detailError = signal('');
+
+  async openDetail(t: RequestTrace): Promise<void> {
+    this.detailError.set('');
+    try {
+      this.detail.set(await this.api.getTraceDetail(t.correlationId));
+    } catch {
+      this.detail.set(null);
+      this.detailError.set('Trace detail is no longer available (it may have aged out of the buffer).');
+    }
+  }
+
+  closeDetail(): void {
+    this.detail.set(null);
+    this.detailError.set('');
+  }
+
+  segmentWidth(ms: number): number {
+    const d = this.detail();
+    if (!d || d.segments.length === 0) return 0;
+    const max = Math.max(...d.segments.map((s) => s.ms), 0.01);
+    return (ms / max) * 100;
   }
 }

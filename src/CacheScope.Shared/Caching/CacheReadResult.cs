@@ -1,3 +1,5 @@
+using CacheScope.Shared.Tracing;
+
 namespace CacheScope.Shared.Caching;
 
 /// <summary>
@@ -13,6 +15,9 @@ public sealed record CacheReadResult<T>
 
     /// <summary>Hit at the serving layer, or Miss when the value did not exist anywhere.</summary>
     public required CacheOutcome Outcome { get; init; }
+
+    /// <summary>Per-layer timing waterfall captured while serving the request.</summary>
+    public IReadOnlyList<LayerTiming> Segments { get; init; } = [];
 
     /// <summary>True when a value was found at any layer.</summary>
     public bool Found => Value is not null;

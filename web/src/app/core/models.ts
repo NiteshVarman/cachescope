@@ -125,6 +125,27 @@ export interface StampedeResult {
 export const WRITE_STRATEGIES: WriteStrategy[] = ['CacheAside', 'WriteThrough', 'WriteBehind', 'RefreshAhead'];
 export const EXPIRATION_MODES: ExpirationMode[] = ['Absolute', 'Sliding'];
 
+export interface LayerTiming {
+  layer: CacheLayer;
+  ms: number;
+  outcome: CacheOutcome;
+}
+
+export interface RequestDetail {
+  requestId: number;
+  correlationId: string;
+  traceId?: string | null;
+  timestamp: string;
+  method: string;
+  path: string;
+  servedBy: CacheLayer;
+  outcome: CacheOutcome;
+  totalMs: number;
+  statusCode: number;
+  source?: string | null;
+  segments: LayerTiming[];
+}
+
 export const LAYER_ORDER: CacheLayer[] = ['Cloudflare', 'Browser', 'Memory', 'Redis', 'Database'];
 
 // Colour per layer, reused by chips and (Phase 4) charts.

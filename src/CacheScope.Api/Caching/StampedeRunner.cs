@@ -85,7 +85,7 @@ public sealed class StampedeRunner(
         {
             using var scope = scopeFactory.CreateScope();
             var exec = scope.ServiceProvider.GetRequiredService<IRequestExecutor>();
-            await exec.GetProductAsync(hotKeyId, "Stampede", ct);
+            await exec.GetProductAsync(hotKeyId, "Stampede", ct: ct);
         }
         catch (Exception ex)
         {

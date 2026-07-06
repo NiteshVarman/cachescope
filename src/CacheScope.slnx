@@ -8,5 +8,6 @@
   <Project Path="CacheScope.Realtime/CacheScope.Realtime.csproj" />
   <Project Path="CacheScope.RedisCache/CacheScope.RedisCache.csproj" />
   <Project Path="CacheScope.Shared/CacheScope.Shared.csproj" />
+  <Project Path="CacheScope.Tests/CacheScope.Tests.csproj" />
   <Project Path="CacheScope.TrafficGenerator/CacheScope.TrafficGenerator.csproj" />
 </Solution>

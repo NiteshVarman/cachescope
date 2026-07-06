@@ -1,4 +1,5 @@
 using CacheScope.Shared.Analytics;
+using CacheScope.Shared.Tracing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CacheScope.Analytics;
@@ -9,6 +10,7 @@ public static class AnalyticsServiceCollectionExtensions
     {
         services.AddSingleton<ILiveStats, LiveStats>();
         services.AddSingleton<IMetricsTimeline, MetricsTimeline>();
+        services.AddSingleton<IRequestDetailStore, RequestDetailStore>();
         return services;
     }
 }

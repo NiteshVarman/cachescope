@@ -10,8 +10,8 @@ namespace CacheScope.Shared.Caching;
 /// </summary>
 public interface IRequestExecutor
 {
-    Task<RequestExecution> GetProductAsync(int id, string source, CancellationToken ct = default);
-    Task<RequestExecution> UpdateProductAsync(int id, decimal price, string source, CancellationToken ct = default);
+    Task<RequestExecution> GetProductAsync(int id, string source, string? correlationId = null, CancellationToken ct = default);
+    Task<RequestExecution> UpdateProductAsync(int id, decimal price, string source, string? correlationId = null, CancellationToken ct = default);
 }
 
 public sealed record RequestExecution(CacheReadResult<Product> Result, RequestTrace Trace);

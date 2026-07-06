@@ -3,7 +3,8 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { APP_CONFIG } from './config';
 import {
-  AnalyticsSnapshot, CacheOpResult, CachePolicySnapshot, StampedeResult, TrafficConfig, TrafficRunStatus,
+  AnalyticsSnapshot, CacheOpResult, CachePolicySnapshot, RequestDetail,
+  StampedeResult, TrafficConfig, TrafficRunStatus,
 } from './models';
 
 @Injectable({ providedIn: 'root' })
@@ -45,6 +46,11 @@ export class ApiService {
     return firstValueFrom(
       this.http.post<StampedeResult>(
         `${this.config.apiBaseUrl}/api/stampede?hotKeyId=${hotKeyId}&concurrency=${concurrency}`, {}));
+  }
+
+  getTraceDetail(correlationId: string): Promise<RequestDetail> {
+    return firstValueFrom(
+      this.http.get<RequestDetail>(`${this.config.apiBaseUrl}/api/traces/${correlationId}`));
   }
 
   startTraffic(cfg: TrafficConfig): Promise<{ runId: string }> {
