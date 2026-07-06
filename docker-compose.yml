@@ -1,0 +1,59 @@
+# Local development topology that mirrors the cloud one-to-one:
+#   - redis        -> self-hosted Redis (L3), same as the Redis container app in Azure
+#   - sqlserver    -> stands in for Azure SQL (L4); serverless auto-pause is cloud-only
+#   - host         -> the CacheScope API (L2 IMemoryCache lives in-process here)
+# Cloudflare (L0) and the browser cache (L1) are not modelled locally — they only
+# exist in front of the public deployment.
+#
+# Usage:  docker compose up --build
+name: cachescope
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: cachescope-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]  # pure cache, no persistence
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: cachescope-sql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "CacheScope!Dev123"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -No -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  host:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    container_name: cachescope-host
+    depends_on:
+      redis:
+        condition: service_healthy
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      # Connection strings consumed from Phase 1 onward.
+      ConnectionStrings__Redis: "redis:6379"
+      ConnectionStrings__Sql: "Server=sqlserver,1433;Database=CacheScope;User Id=sa;Password=CacheScope!Dev123;TrustServerCertificate=True"
+    ports:
+      - "5199:8080"
+
+volumes: {}

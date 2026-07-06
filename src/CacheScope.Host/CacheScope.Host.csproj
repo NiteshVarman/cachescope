@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CacheScope.Api\CacheScope.Api.csproj" />
+    <ProjectReference Include="..\CacheScope.Shared\CacheScope.Shared.csproj" />
+    <ProjectReference Include="..\CacheScope.MemoryCache\CacheScope.MemoryCache.csproj" />
+    <ProjectReference Include="..\CacheScope.RedisCache\CacheScope.RedisCache.csproj" />
+    <ProjectReference Include="..\CacheScope.Cloudflare\CacheScope.Cloudflare.csproj" />
+    <ProjectReference Include="..\CacheScope.Database\CacheScope.Database.csproj" />
+    <ProjectReference Include="..\CacheScope.Analytics\CacheScope.Analytics.csproj" />
+    <ProjectReference Include="..\CacheScope.TrafficGenerator\CacheScope.TrafficGenerator.csproj" />
+    <ProjectReference Include="..\CacheScope.Realtime\CacheScope.Realtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.5.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,25 @@
+<Project>
+
+  <!-- Solution-wide defaults for every CacheScope project. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      NU1903 (GHSA-v5pm-xwqc-g5wc) is reported against Microsoft.OpenApi 2.x, which
+      Microsoft.AspNetCore.OpenApi 10.0.9 pulls in transitively. The fix ships in
+      Microsoft.OpenApi 3.x, but 3.x is a breaking API change that the .NET 10
+      AspNetCore.OpenApi source generator does not yet support (it assigns the now
+      read-only IOpenApiMediaType.Example). We suppress the advisory until the
+      framework packages realign, rather than pinning a version that fails to build.
+    -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-v5pm-xwqc-g5wc" />
+  </ItemGroup>
+
+</Project>

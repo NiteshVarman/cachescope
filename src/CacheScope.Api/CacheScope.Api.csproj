@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CacheScope.Shared\CacheScope.Shared.csproj" />
+    <ProjectReference Include="..\CacheScope.MemoryCache\CacheScope.MemoryCache.csproj" />
+    <ProjectReference Include="..\CacheScope.RedisCache\CacheScope.RedisCache.csproj" />
+    <ProjectReference Include="..\CacheScope.Database\CacheScope.Database.csproj" />
+    <ProjectReference Include="..\CacheScope.TrafficGenerator\CacheScope.TrafficGenerator.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

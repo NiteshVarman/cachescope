@@ -1,0 +1,218 @@
+<mat-toolbar class="topbar">
+  <mat-icon class="brand-icon">travel_explore</mat-icon>
+  <span class="brand">CacheScope</span>
+  <span class="brand-sub">Multi-Layer Cache Observability</span>
+  <span class="spacer"></span>
+  <span class="conn" [class.online]="hub.connected()">
+    <mat-icon>{{ hub.connected() ? 'cloud_done' : 'cloud_off' }}</mat-icon>
+    {{ hub.connected() ? 'Live' : 'Disconnected' }}
+  </span>
+</mat-toolbar>
+
+<div class="page">
+  <!-- ===================== Live stats ===================== -->
+  @let s = hub.stats();
+  <section class="cards">
+    <mat-card class="stat">
+      <div class="stat-label">Total Requests</div>
+      <div class="stat-value">{{ s?.totalRequests ?? 0 | number }}</div>
+    </mat-card>
+
+    <mat-card class="stat">
+      <div class="stat-label">Cache Hit Ratio</div>
+      <div class="stat-value">{{ (s?.cacheHitRatio ?? 0) * 100 | number: '1.0-1' }}%</div>
+      <mat-progress-bar mode="determinate" [value]="(s?.cacheHitRatio ?? 0) * 100"></mat-progress-bar>
+    </mat-card>
+
+    <mat-card class="stat">
+      <div class="stat-label">Avg Latency</div>
+      <div class="stat-value">{{ s?.averageLatencyMs ?? 0 | number: '1.0-1' }}<small> ms</small></div>
+    </mat-card>
+
+    <mat-card class="stat">
+      <div class="stat-label">Peak Latency</div>
+      <div class="stat-value">{{ s?.peakLatencyMs ?? 0 | number: '1.0-1' }}<small> ms</small></div>
+    </mat-card>
+
+    <mat-card class="stat">
+      <div class="stat-label">Failed</div>
+      <div class="stat-value" [class.bad]="(s?.failedRequests ?? 0) > 0">{{ s?.failedRequests ?? 0 | number }}</div>
+    </mat-card>
+  </section>
+
+  <!-- ===================== Per-layer breakdown ===================== -->
+  <section class="layers">
+    @for (layer of layers; track layer) {
+      <div class="layer-chip" [style.border-color]="layerColor[layer]">
+        <span class="dot" [style.background]="layerColor[layer]"></span>
+        <span class="layer-name">{{ layer }}</span>
+        <span class="layer-count">{{ layerCount(layer) | number }}</span>
+      </div>
+    }
+  </section>
+
+  <!-- ===================== Traffic Generator ===================== -->
+  @let ts = hub.trafficStatus();
+  <mat-card class="traffic">
+    <div class="section-title"><mat-icon>speed</mat-icon> Traffic Generator</div>
+
+    <div class="traffic-form">
+      <mat-form-field appearance="outline">
+        <mat-label>Pattern</mat-label>
+        <mat-select [ngModel]="config().pattern" (ngModelChange)="patch('pattern', $event)">
+          @for (p of patterns; track p) { <mat-option [value]="p">{{ p }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Key selection</mat-label>
+        <mat-select [ngModel]="config().keySelection" (ngModelChange)="patch('keySelection', $event)">
+          @for (k of keySelections; track k) { <mat-option [value]="k">{{ k }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Total requests</mat-label>
+        <input matInput type="number" [ngModel]="config().totalRequests" (ngModelChange)="patch('totalRequests', $event)" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Requests / sec</mat-label>
+        <input matInput type="number" [ngModel]="config().requestsPerSecond" (ngModelChange)="patch('requestsPerSecond', $event)" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Duration (s)</mat-label>
+        <input matInput type="number" [ngModel]="config().durationSeconds" (ngModelChange)="patch('durationSeconds', $event)" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Concurrency</mat-label>
+        <input matInput type="number" [ngModel]="config().concurrency" (ngModelChange)="patch('concurrency', $event)" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>GET %</mat-label>
+        <input matInput type="number" [ngModel]="config().getPercentage" (ngModelChange)="patch('getPercentage', $event)" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Hot keys</mat-label>
+        <input matInput type="number" [ngModel]="config().hotKeyCount" (ngModelChange)="patch('hotKeyCount', $event)" />
+      </mat-form-field>
+    </div>
+
+    <div class="traffic-actions">
+      <button matButton="filled" (click)="startTraffic()" [disabled]="trafficRunning()">
+        <mat-icon>play_arrow</mat-icon> Start Run
+      </button>
+      <button matButton="tonal" (click)="stopTraffic()" [disabled]="!trafficRunning()">
+        <mat-icon>stop</mat-icon> Stop
+      </button>
+      @if (ts && ts.state !== 'Idle') {
+        <span class="run-state" [attr.data-state]="ts.state">{{ ts.state }}</span>
+        <span class="muted">run {{ ts.runId }}</span>
+      }
+    </div>
+
+    <!-- Live Traffic Panel -->
+    @if (ts && ts.state !== 'Idle') {
+      @if (ts.targetTotal) {
+        <mat-progress-bar mode="determinate"
+          [value]="ts.targetTotal ? (ts.completed / ts.targetTotal) * 100 : 0"></mat-progress-bar>
+      }
+      <div class="traffic-panel">
+        <div class="tp"><span>Current RPS</span><b>{{ ts.currentRps | number: '1.0-0' }}</b></div>
+        <div class="tp"><span>Completed</span><b>{{ ts.completed | number }}@if (ts.targetTotal) { <small> / {{ ts.targetTotal | number }}</small> }</b></div>
+        <div class="tp"><span>Pending</span><b>{{ ts.pending | number }}</b></div>
+        <div class="tp"><span>Failed</span><b [class.bad]="ts.failed > 0">{{ ts.failed | number }}</b></div>
+        <div class="tp"><span>Avg Latency</span><b>{{ ts.averageLatencyMs | number: '1.0-1' }} ms</b></div>
+        <div class="tp"><span>Peak Latency</span><b>{{ ts.peakLatencyMs | number: '1.0-1' }} ms</b></div>
+        <div class="tp"><span>Elapsed</span><b>{{ ts.elapsedMs / 1000 | number: '1.0-1' }} s</b></div>
+      </div>
+    }
+  </mat-card>
+
+  <!-- ===================== Controls ===================== -->
+  <mat-card class="controls">
+    <mat-form-field appearance="outline" class="w-sm">
+      <mat-label>Burst size</mat-label>
+      <input matInput type="number" min="1" [ngModel]="burstSize()" (ngModelChange)="burstSize.set($event)" />
+    </mat-form-field>
+
+    <button matButton="filled" (click)="fireBurst()" [disabled]="bursting()">
+      <mat-icon>bolt</mat-icon> Generate Traffic
+    </button>
+
+    <button matButton="tonal" (click)="hub.togglePaused()">
+      <mat-icon>{{ hub.paused() ? 'play_arrow' : 'pause' }}</mat-icon>
+      {{ hub.paused() ? 'Resume' : 'Pause' }}
+    </button>
+
+    <button matButton (click)="hub.clearStream()">
+      <mat-icon>clear_all</mat-icon> Clear
+    </button>
+
+    <span class="spacer"></span>
+
+    <mat-form-field appearance="outline" class="w-sm">
+      <mat-label>Layer</mat-label>
+      <mat-select [ngModel]="layerFilter()" (ngModelChange)="layerFilter.set($event)">
+        <mat-option value="All">All</mat-option>
+        @for (layer of layers; track layer) {
+          <mat-option [value]="layer">{{ layer }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="w-md">
+      <mat-label>Search</mat-label>
+      <input matInput placeholder="path, id, correlation…" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+  </mat-card>
+
+  <!-- ===================== Live request stream ===================== -->
+  <mat-card class="stream">
+    <div class="stream-head">
+      <span>Live Request Stream</span>
+      <span class="muted">
+        showing {{ filteredTraces().length | number }}
+        @if (hub.paused()) { <em>· paused</em> }
+      </span>
+    </div>
+
+    <div class="stream-body">
+      <table class="trace-table">
+        <thead>
+          <tr>
+            <th class="c-id">#</th>
+            <th class="c-method">Method</th>
+            <th class="c-path">Path</th>
+            <th class="c-layer">Served By</th>
+            <th class="c-status">Status</th>
+            <th class="c-latency">Latency</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (t of filteredTraces(); track t.requestId) {
+            <tr>
+              <td class="c-id">{{ t.requestId }}</td>
+              <td class="c-method">{{ t.method }}</td>
+              <td class="c-path">{{ t.path }}</td>
+              <td class="c-layer">
+                <span class="pill" [style.background]="layerColor[t.servedBy]">{{ t.servedBy }}</span>
+              </td>
+              <td class="c-status"><span [class]="statusClass(t.statusCode)">{{ t.statusCode }}</span></td>
+              <td class="c-latency">{{ t.responseTimeMs | number: '1.0-1' }} ms</td>
+            </tr>
+          } @empty {
+            <tr class="empty">
+              <td colspan="6">No requests yet — click <strong>Generate Traffic</strong> to begin.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </mat-card>
+</div>

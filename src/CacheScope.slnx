@@ -1,0 +1,12 @@
+<Solution>
+  <Project Path="CacheScope.Analytics/CacheScope.Analytics.csproj" />
+  <Project Path="CacheScope.Api/CacheScope.Api.csproj" />
+  <Project Path="CacheScope.Cloudflare/CacheScope.Cloudflare.csproj" />
+  <Project Path="CacheScope.Database/CacheScope.Database.csproj" />
+  <Project Path="CacheScope.Host/CacheScope.Host.csproj" />
+  <Project Path="CacheScope.MemoryCache/CacheScope.MemoryCache.csproj" />
+  <Project Path="CacheScope.Realtime/CacheScope.Realtime.csproj" />
+  <Project Path="CacheScope.RedisCache/CacheScope.RedisCache.csproj" />
+  <Project Path="CacheScope.Shared/CacheScope.Shared.csproj" />
+  <Project Path="CacheScope.TrafficGenerator/CacheScope.TrafficGenerator.csproj" />
+</Solution>
