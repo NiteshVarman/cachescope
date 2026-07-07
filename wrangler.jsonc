@@ -1,0 +1,11 @@
+{
+  // Cloudflare Workers static-assets deployment for the Angular dashboard.
+  // The build (cd web && ng build) emits to web/dist/web/browser; wrangler uploads
+  // that as static assets. No server Worker script — this is a static SPA.
+  "name": "cachescope",
+  "compatibility_date": "2025-11-01",
+  "assets": {
+    "directory": "web/dist/web/browser",
+    "not_found_handling": "single-page-application"
+  }
+}
