@@ -74,22 +74,29 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 // Shared ActivitySource so any layer can open a span under the CacheScope trace.
 builder.Services.AddSingleton(new ActivitySource(serviceName, serviceVersion));
 
-// CORS for the Angular dev server (Phase 2+). In Development we allow any localhost
-// origin so the dev server / preview tooling can run on any port; SignalR needs
-// AllowCredentials, which forbids a wildcard origin, hence SetIsOriginAllowed.
-const string devCors = "cachescope-dev";
-builder.Services.AddCors(o => o.AddPolicy(devCors, p => p
-    .SetIsOriginAllowed(origin => new Uri(origin).Host is "localhost" or "127.0.0.1")
+// CORS. Any localhost origin is allowed (dev servers / preview on any port); production
+// origins come from Cors:AllowedOrigins. SignalR needs AllowCredentials, which forbids a
+// wildcard origin, hence SetIsOriginAllowed.
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+const string corsPolicy = "cachescope";
+builder.Services.AddCors(o => o.AddPolicy(corsPolicy, p => p
+    .SetIsOriginAllowed(origin =>
+    {
+        var host = new Uri(origin).Host;
+        return host is "localhost" or "127.0.0.1"
+            || allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase);
+    })
     .AllowAnyHeader()
     .AllowAnyMethod()
     .AllowCredentials()));
 
 var app = builder.Build();
 
+app.UseCors(corsPolicy);
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.UseCors(devCors);
 }
 
 app.UseMiddleware<CorrelationIdMiddleware>();
