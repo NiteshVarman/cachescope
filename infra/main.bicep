@@ -37,6 +37,9 @@ param sqlAdminLogin string = 'cachescopeadmin'
 @secure()
 param sqlAdminPassword string
 
+@description('Artificial DB latency (ms) so the L2/L3-vs-L4 gap and the stampede demo are visible. Demo knob.')
+param simulatedQueryLatencyMs int = 45
+
 var ghcrConfigured = !empty(ghcrToken)
 var suffix = uniqueString(resourceGroup().id)
 var redisAppName = '${appName}-redis'
@@ -197,6 +200,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', secretRef: 'appinsights-connection' }
             { name: 'ConnectionStrings__Redis', value: '${redisAppName}:6379' }
             { name: 'ConnectionStrings__Sql', secretRef: 'sql-connection' }
+            { name: 'Database__SimulatedQueryLatencyMs', value: string(simulatedQueryLatencyMs) }
           ]
           probes: [
             {
@@ -208,7 +212,10 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
           ]
         }
       ]
-      scale: { minReplicas: 0, maxReplicas: 3 }   // scale-to-zero when idle
+      // Single replica: CacheScope's stats/traffic/stream state are in-process singletons,
+      // so a coherent dashboard needs one instance. (Scaling out would require Azure SignalR
+      // + a Redis-backed store.) minReplicas 0 keeps scale-to-zero cost.
+      scale: { minReplicas: 0, maxReplicas: 1 }
     }
   }
 }
