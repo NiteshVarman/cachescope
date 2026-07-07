@@ -36,8 +36,21 @@ export class SignalrService {
     this.connection.onreconnected(() => this.connected.set(true));
     this.connection.onclose(() => this.connected.set(false));
 
-    await this.connection.start();
-    this.connected.set(true);
+    await this.connectWithRetry(this.connection);
+  }
+
+  // withAutomaticReconnect only retries *dropped* connections, not the initial connect.
+  // On a scale-to-zero backend the first attempt can fail while the container wakes, so
+  // retry the initial connect with capped exponential backoff until it comes up.
+  private async connectWithRetry(conn: signalR.HubConnection, attempt = 0): Promise<void> {
+    try {
+      await conn.start();
+      this.connected.set(true);
+    } catch {
+      this.connected.set(false);
+      const delay = Math.min(1000 * 2 ** attempt, 15000);
+      setTimeout(() => void this.connectWithRetry(conn, attempt + 1), delay);
+    }
   }
 
   private onTraces(batch: RequestTrace[]): void {
