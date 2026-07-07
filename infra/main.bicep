@@ -23,12 +23,12 @@ param appName string = 'cachescope'
 @description('Container image for the API, e.g. ghcr.io/<user>/cachescope-host:latest')
 param containerImage string
 
-@description('GHCR username (your GitHub handle).')
-param ghcrUsername string
+@description('GHCR username (your GitHub handle). Only needed for a private image.')
+param ghcrUsername string = ''
 
-@description('GHCR PAT with read:packages.')
+@description('GHCR PAT with read:packages. Leave empty when the image is public.')
 @secure()
-param ghcrToken string
+param ghcrToken string = ''
 
 @description('Azure SQL administrator login.')
 param sqlAdminLogin string = 'cachescopeadmin'
@@ -37,6 +37,7 @@ param sqlAdminLogin string = 'cachescopeadmin'
 @secure()
 param sqlAdminPassword string
 
+var ghcrConfigured = !empty(ghcrToken)
 var suffix = uniqueString(resourceGroup().id)
 var redisAppName = '${appName}-redis'
 var apiAppName = '${appName}-api'
@@ -170,18 +171,20 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
         targetPort: 8080
         transport: 'auto'
       }
-      registries: [
+      // Only attach GHCR credentials for a private image; a public image pulls anonymously.
+      registries: ghcrConfigured ? [
         {
           server: 'ghcr.io'
           username: ghcrUsername
           passwordSecretRef: 'ghcr-token'
         }
-      ]
-      secrets: [
+      ] : []
+      secrets: concat(ghcrConfigured ? [
         { name: 'ghcr-token', value: ghcrToken }
+      ] : [], [
         { name: 'sql-connection', value: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=${sqlDbName};User ID=${sqlAdminLogin};Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;' }
         { name: 'appinsights-connection', value: appInsights.properties.ConnectionString }
-      ]
+      ])
     }
     template: {
       containers: [
