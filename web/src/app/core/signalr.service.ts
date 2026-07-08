@@ -32,6 +32,9 @@ export class SignalrService {
     this.connection.on('ReceiveStats', (snapshot: LiveStatsSnapshot) => this.stats.set(snapshot));
     this.connection.on('ReceiveTraces', (batch: RequestTrace[]) => this.onTraces(batch));
     this.connection.on('ReceiveTrafficStatus', (status: TrafficRunStatus) => this.trafficStatus.set(status));
+    // Timeline is consumed via the /api/analytics poll; register a no-op so SignalR
+    // doesn't log "No client method 'ReceiveTimeline'" every second.
+    this.connection.on('ReceiveTimeline', () => { /* intentionally ignored */ });
 
     this.connection.onreconnected(() => this.connected.set(true));
     this.connection.onclose(() => this.connected.set(false));

@@ -96,15 +96,17 @@ export class ApiService {
   async probeBrowserCache(ids: number[]): Promise<{ total: number; cacheHits: number }> {
     const sample = ids.slice(0, 10);
     if (sample.length === 0) return { total: 0, cacheHits: 0 };
+    const url = (id: number) => `${this.config.apiBaseUrl}/api/products/${id}`;
 
-    // Phase 1 — warm the browser cache (these responses are Cache-Control: max-age=30).
-    await Promise.all(sample.map((id) => this.getProduct(id).catch(() => undefined)));
-    await new Promise((r) => setTimeout(r, 200));
+    // Raw fetch (default cache mode) so the browser HTTP cache is used predictably.
+    // Phase 1 — warm the browser cache (responses are Cache-Control: max-age=30).
+    await Promise.all(sample.map((id) => fetch(url(id)).catch(() => undefined)));
+    await new Promise((r) => setTimeout(r, 250));
 
     // Phase 2 — clear the timing buffer, then re-request the same ids and measure.
     performance.clearResourceTimings();
-    await Promise.all(sample.map((id) => this.getProduct(id).catch(() => undefined)));
-    await new Promise((r) => setTimeout(r, 250));
+    await Promise.all(sample.map((id) => fetch(url(id)).catch(() => undefined)));
+    await new Promise((r) => setTimeout(r, 300));
 
     const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
     let total = 0;
@@ -112,6 +114,8 @@ export class ApiService {
     for (const e of entries) {
       if (!e.name.includes('/api/products/')) continue;
       total++;
+      // transferSize === 0 (with a real body) ⇒ served from the browser cache; deliveryType
+      // 'cache' is the newer explicit signal. Both require Timing-Allow-Origin cross-origin.
       const fromCache =
         (e as unknown as { deliveryType?: string }).deliveryType === 'cache' ||
         (e.transferSize === 0 && e.decodedBodySize > 0);
