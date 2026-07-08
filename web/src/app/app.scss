@@ -56,11 +56,39 @@
   mat-progress-bar { margin-top: 10px; border-radius: 4px; }
 }
 
-/* ---------- per-layer chips ---------- */
+/* ---------- per-layer chips + edge card row ---------- */
+.layer-row {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.layer-row .layers { flex: 1 1 auto; align-content: center; }
+
+.edge-card {
+  flex: 0 0 300px;
+  padding: 12px 16px;
+  border: 1px solid rgba(246, 130, 31, 0.4);
+
+  .edge-head {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 500;
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    small { opacity: 0.55; font-weight: 400; margin-left: auto; }
+  }
+  .edge-ratio { font-size: 30px; font-weight: 600; color: #f6821f; margin-top: 6px; small { font-size: 12px; opacity: 0.6; color: rgba(255,255,255,0.7); } }
+  .edge-line { font-size: 12px; opacity: 0.7; margin-top: 4px; b { color: #f6b06e; } }
+  .edge-empty { font-size: 12px; opacity: 0.55; margin-top: 6px; line-height: 1.5; }
+}
+
 .layers {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .edge-card { flex: 1 1 100%; }
 }
 
 .layer-chip {
@@ -87,6 +115,8 @@
   .w-sm { width: 130px; }
   .w-md { width: 240px; }
   mat-form-field { margin-bottom: -20px; } /* absorb subscript space */
+
+  .l1-result { font-size: 13px; opacity: 0.8; b { color: #9c6ade; } small { opacity: 0.6; } }
 }
 
 /* ---------- traffic generator ---------- */

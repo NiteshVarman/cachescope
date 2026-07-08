@@ -14,8 +14,8 @@ Every request emits a trace (which layer served it, latency, hit/miss, correlati
 
 | Layer | Component | Where it lives | How it's observed |
 |-------|-----------|----------------|-------------------|
-| **L0** | Cloudflare edge cache | Cloudflare POPs | `CF-Cache-Status` header |
-| **L1** | Browser cache | Client | `Cache-Control` / `ETag` response headers |
+| **L0** | Cloudflare edge cache | Cloudflare POPs | Cloudflare **GraphQL Analytics API** (edge hit ratio) |
+| **L1** | Browser cache | Client | client-side **Resource Timing** probe |
 | **L2** | Application memory cache | In-process (`IMemoryCache`) | Directly measured in the pipeline |
 | **L3** | Distributed cache | Redis | Directly measured in the pipeline |
 | **L4** | Database (source of truth) | Azure SQL | Directly measured in the pipeline |
@@ -67,6 +67,7 @@ flowchart LR
 - Streaming latency percentiles (P50 / P95 / P99 via a fixed-bucket histogram — no per-tick sorting).
 - Per-second metrics timeline, request-distribution donut, hit-ratio gauge, per-layer bars, latency line, RPS area.
 - Database analytics: queries executed vs. **queries prevented** by caching, average query time.
+- **L0 edge stats** pulled from the Cloudflare GraphQL Analytics API (edge hit ratio + hit/miss/dynamic), and **L1 browser-cache** measured client-side via the Resource Timing API.
 - Reset counters to compare two workloads back-to-back.
 
 **Cache operations & policies (runtime-configurable)**
@@ -85,7 +86,7 @@ flowchart LR
 Being precise about this, because it matters for interpreting the demo:
 
 - **Measured directly (real):** L2 `IMemoryCache`, L3 Redis, and L4 SQL — every hit/miss and latency is recorded server-side in the pipeline.
-- **Header-observed only:** L0 Cloudflare and L1 browser hits never reach the origin, so they are surfaced from `CF-Cache-Status` / `Cache-Control` headers rather than measured. Server-side traffic generation exercises L2–L4; hitting L0/L1 requires real browser traffic through the CDN.
+- **Observed out-of-band (real, but not from the origin):** L0/L1 hits never reach the origin, so they can't be counted in the pipeline. **L0** is pulled from **Cloudflare's GraphQL Analytics API** (a background poller; aggregate, ~minutes delayed) and shown as the edge hit ratio. **L1** is measured **client-side** via the browser's **Resource Timing API** (`transferSize === 0` ⇒ served from cache) — a per-browser probe, since only the browser can see its own cache. The **server-side generator** drives L2–L4; the **client-side burst** generates the real browser→edge traffic that lights up L0/L1.
 - **Optionally simulated:** database latency can be padded via `Database:SimulatedQueryLatencyMs`. A warm SQL answers in well under a millisecond, which hides the point of caching; a small pad makes the L2/L3-vs-L4 gap (and the stampede demo) clearly visible.
 
 ## Tech stack

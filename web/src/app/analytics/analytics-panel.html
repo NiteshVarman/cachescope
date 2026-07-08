@@ -5,6 +5,10 @@
   <div class="section-title"><mat-icon>insights</mat-icon> Cache Analytics</div>
   <button matButton (click)="reset()"><mat-icon>restart_alt</mat-icon> Reset counters</button>
 </div>
+<p class="section-blurb">
+  Aggregated metrics — layer distribution, cache-hit ratio, latency percentiles (P50/P95/P99) and
+  <strong>database queries prevented</strong> by caching. Reset to compare two runs from a clean slate.
+</p>
 
 <!-- Metric cards -->
 <section class="metric-cards">
@@ -78,30 +82,4 @@
     </svg>
   </mat-card>
 
-  <!-- L0 — Cloudflare edge (from the Cloudflare GraphQL Analytics API) -->
-  <mat-card class="chart">
-    @let e = edge();
-    <div class="chart-title">
-      Cloudflare Edge (L0)
-      @if (e?.configured && e?.updatedAt) {
-        <small>· last {{ e!.windowMinutes }}m · via Cloudflare Analytics</small>
-      }
-    </div>
-    @if (e?.configured) {
-      <div class="edge-hero">
-        <div class="edge-ratio">{{ (e!.edgeHitRatio) * 100 | number: '1.0-1' }}%</div>
-        <div class="edge-sub">edge hit ratio · <b>{{ e!.hit | number }}</b> requests served at the edge</div>
-      </div>
-      <div class="cf-list">
-        @for (r of edgeRows(); track r.label) {
-          <div class="cf-row"><span>{{ r.label }}</span><b [class.good]="r.good && r.value > 0">{{ r.value | number }}</b></div>
-        }
-      </div>
-    } @else {
-      <div class="cf-empty">
-        Cloudflare analytics not configured. These L0 hits are served entirely at the edge and never reach the origin —
-        they're pulled from Cloudflare's Analytics API when a zone + token are configured.
-      </div>
-    }
-  </mat-card>
 </div>

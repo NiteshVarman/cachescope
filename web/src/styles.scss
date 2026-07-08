@@ -29,3 +29,12 @@ body {
   margin: 0;
   font-family: Roboto, 'Helvetica Neue', sans-serif;
 }
+
+/* One-line explanation shown under a section title (global so every panel can use it). */
+.section-blurb {
+  font-size: 12.5px;
+  opacity: 0.6;
+  line-height: 1.5;
+  margin: -6px 0 14px;
+}
+.section-blurb strong { opacity: 0.85; }

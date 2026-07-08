@@ -122,18 +122,4 @@ export class AnalyticsPanel implements OnInit, OnDestroy {
     return { line, area, max };
   }
 
-  readonly edge = computed(() => this.snapshot()?.cloudflareEdge ?? null);
-
-  edgeRows() {
-    const e = this.edge();
-    if (!e) return [];
-    return [
-      { label: 'Hit (served by edge)', value: e.hit, good: true },
-      { label: 'Revalidated', value: e.revalidated, good: false },
-      { label: 'Miss', value: e.miss, good: false },
-      { label: 'Expired', value: e.expired, good: false },
-      { label: 'Dynamic (not cacheable)', value: e.dynamic, good: false },
-      { label: 'None', value: e.none, good: false },
-    ];
-  }
 }

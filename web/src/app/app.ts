@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -17,7 +17,7 @@ import { StampedePanel } from './stampede/stampede-panel';
 import { ApiService } from './core/api.service';
 import { SignalrService } from './core/signalr.service';
 import {
-  CacheLayer, KEY_SELECTIONS, LAYER_COLOR, LAYER_ORDER,
+  CacheLayer, EdgeStatsSnapshot, KEY_SELECTIONS, LAYER_COLOR, LAYER_ORDER,
   RequestDetail, RequestTrace, TRAFFIC_PATTERNS, TrafficConfig,
 } from './core/models';
 
@@ -42,16 +42,26 @@ import {
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
-export class App implements OnInit {
+export class App implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   readonly hub = inject(SignalrService);
 
-  readonly layers = LAYER_ORDER;
+  // Top chips are the server-measured layers only (L2/L3/L4 + client-probed Browser L1).
+  // L0 (Cloudflare) is shown separately as an edge card — it's an out-of-band aggregate.
+  readonly chipLayers = LAYER_ORDER.filter((l) => l !== 'Cloudflare');
   readonly layerColor = LAYER_COLOR;
+
+  // L0 edge stats, polled from /api/analytics (aggregate, ~minutes delayed, via Cloudflare).
+  readonly edge = signal<EdgeStatsSnapshot | null>(null);
+  private edgeTimer?: ReturnType<typeof setInterval>;
 
   private productIds: number[] = [];
   readonly burstSize = signal(200);
   readonly bursting = signal(false);
+
+  // L1 (browser cache) — measured client-side, since the server can't see browser-cache hits.
+  readonly browserCache = signal<{ total: number; cacheHits: number } | null>(null);
+  readonly probingL1 = signal(false);
 
   // ---- Traffic generator ----
   readonly patterns = TRAFFIC_PATTERNS;
@@ -112,17 +122,44 @@ export class App implements OnInit {
     } catch {
       this.productIds = Array.from({ length: 100 }, (_, i) => i + 1);
     }
+    void this.refreshEdge();
+    this.edgeTimer = setInterval(() => void this.refreshEdge(), 5000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.edgeTimer) clearInterval(this.edgeTimer);
+  }
+
+  private async refreshEdge(): Promise<void> {
+    try {
+      const a = await this.api.getAnalytics();
+      this.edge.set(a.cloudflareEdge ?? null);
+    } catch {
+      /* analytics momentarily unavailable */
+    }
   }
 
   layerCount(layer: CacheLayer): number {
+    // L1 comes from the client-side probe, not the server (browser hits never reach it).
+    if (layer === 'Browser') return this.browserCache()?.cacheHits ?? 0;
     const s = this.hub.stats();
     if (!s) return 0;
     switch (layer) {
       case 'Cloudflare': return s.cloudflareHits;
-      case 'Browser': return s.browserHits;
       case 'Memory': return s.memoryHits;
       case 'Redis': return s.redisHits;
       case 'Database': return s.databaseHits;
+      default: return 0;
+    }
+  }
+
+  async probeL1(): Promise<void> {
+    if (this.probingL1() || this.productIds.length === 0) return;
+    this.probingL1.set(true);
+    try {
+      this.browserCache.set(await this.api.probeBrowserCache(this.productIds));
+    } finally {
+      this.probingL1.set(false);
     }
   }
 

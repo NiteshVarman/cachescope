@@ -40,15 +40,36 @@
     </mat-card>
   </section>
 
-  <!-- ===================== Per-layer breakdown ===================== -->
-  <section class="layers">
-    @for (layer of layers; track layer) {
-      <div class="layer-chip" [style.border-color]="layerColor[layer]">
-        <span class="dot" [style.background]="layerColor[layer]"></span>
-        <span class="layer-name">{{ layer }}</span>
-        <span class="layer-count">{{ layerCount(layer) | number }}</span>
+  <!-- ===================== Per-layer breakdown + edge (L0) ===================== -->
+  <section class="layer-row">
+    <div class="layers">
+      @for (layer of chipLayers; track layer) {
+        <div class="layer-chip" [style.border-color]="layerColor[layer]">
+          <span class="dot" [style.background]="layerColor[layer]"></span>
+          <span class="layer-name">{{ layer }}{{ layer === 'Browser' ? ' (this browser)' : '' }}</span>
+          <span class="layer-count">{{ layerCount(layer) | number }}</span>
+        </div>
+      }
+    </div>
+
+    @let e = edge();
+    <mat-card class="edge-card">
+      <div class="edge-head">
+        <span class="dot" style="background:#f6821f"></span>
+        Cloudflare Edge · L0
+        @if (e?.configured) { <small>last {{ e!.windowMinutes }}m · via Cloudflare</small> }
       </div>
-    }
+      @if (e?.configured) {
+        <div class="edge-ratio">{{ e!.edgeHitRatio * 100 | number: '1.0-1' }}%<small> edge hit ratio</small></div>
+        <div class="edge-line">
+          <b>{{ e!.hit | number }}</b> served at the edge ·
+          {{ e!.miss + e!.expired + e!.revalidated | number }} revalidated/miss ·
+          {{ e!.dynamic | number }} dynamic
+        </div>
+      } @else {
+        <div class="edge-empty">No edge data — served at Cloudflare's edge, never reaches the origin.</div>
+      }
+    </mat-card>
   </section>
 
   <!-- ===================== Cache Stampede Demo ===================== -->
@@ -61,6 +82,11 @@
   @let ts = hub.trafficStatus();
   <mat-card class="traffic">
     <div class="section-title"><mat-icon>speed</mat-icon> Traffic Generator</div>
+    <p class="section-blurb">
+      <strong>Server-side</strong> load generator — fires requests through the origin pipeline
+      (Memory → Redis → Database) at a target rate and pattern. Runs inside the server, so it
+      exercises L2–L4 (not the Cloudflare edge or browser cache).
+    </p>
 
     <div class="traffic-form">
       <mat-form-field appearance="outline">
@@ -141,6 +167,11 @@
 
   <!-- ===================== Controls ===================== -->
   <mat-card class="controls">
+    <p class="section-blurb" style="flex-basis: 100%; margin: 0;">
+      <strong>Client-side</strong> burst — fires requests from your browser through Cloudflare, so these
+      can be served by the edge (L0) or browser cache (L1) before reaching the server. “Measure L1” probes
+      this browser’s own cache.
+    </p>
     <mat-form-field appearance="outline" class="w-sm">
       <mat-label>Burst size</mat-label>
       <input matInput type="number" min="1" [ngModel]="burstSize()" (ngModelChange)="burstSize.set($event)" />
@@ -159,13 +190,21 @@
       <mat-icon>clear_all</mat-icon> Clear
     </button>
 
+    <button matButton="tonal" (click)="probeL1()" [disabled]="probingL1()"
+            matTooltip="Warms then re-requests products from this browser and measures how many were served by the browser cache (L1)">
+      <mat-icon>travel_explore</mat-icon> {{ probingL1() ? 'Measuring…' : 'Measure L1' }}
+    </button>
+    @if (browserCache(); as bc) {
+      <span class="l1-result">L1 browser cache: <b>{{ bc.cacheHits }}</b> / {{ bc.total }} served from browser <small>(client-measured)</small></span>
+    }
+
     <span class="spacer"></span>
 
     <mat-form-field appearance="outline" class="w-sm">
       <mat-label>Layer</mat-label>
       <mat-select [ngModel]="layerFilter()" (ngModelChange)="layerFilter.set($event)">
         <mat-option value="All">All</mat-option>
-        @for (layer of layers; track layer) {
+        @for (layer of chipLayers; track layer) {
           <mat-option [value]="layer">{{ layer }}</mat-option>
         }
       </mat-select>
@@ -187,6 +226,10 @@
         @if (hub.paused()) { <em>· paused</em> }
       </span>
     </div>
+    <p class="section-blurb" style="padding: 0 16px;">
+      Every request as it happens — which layer served it and its latency. Click a row for its
+      per-layer timing waterfall (correlation id + trace id).
+    </p>
 
     <div class="stream-body">
       <table class="trace-table">

@@ -3,6 +3,10 @@
   <!-- Policies -->
   <mat-card class="cc">
     <div class="section-title"><mat-icon>tune</mat-icon> Cache Policies</div>
+    <p class="section-blurb">
+      Change caching behaviour live. TTLs set how long entries stay cached; the <strong>write strategy</strong>
+      controls what every write (PUT) does to the cache. Applies immediately to all requests.
+    </p>
     @if (p) {
       <div class="policy-form">
         <mat-form-field appearance="outline">
@@ -36,6 +40,10 @@
   <!-- Operations -->
   <mat-card class="cc">
     <div class="section-title"><mat-icon>build</mat-icon> Cache Operations</div>
+    <p class="section-blurb">
+      Manually clear, warm, expire or invalidate cache entries — then read a product and watch which
+      layer serves it. “Purge Cloudflare” clears the edge (L0).
+    </p>
     <div class="ops">
       <button matButton="tonal" (click)="clearMemory()" [disabled]="busy()">Clear Memory</button>
       <button matButton="tonal" (click)="clearRedis()" [disabled]="busy()">Clear Redis</button>

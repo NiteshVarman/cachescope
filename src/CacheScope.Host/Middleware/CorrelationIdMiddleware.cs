@@ -22,6 +22,9 @@ public sealed class CorrelationIdMiddleware(RequestDelegate next, ILogger<Correl
         context.Response.OnStarting(() =>
         {
             context.Response.Headers[CorrelationConstants.CorrelationIdHeader] = correlationId;
+            // Expose Resource Timing details (transferSize, etc.) to the cross-origin dashboard
+            // so it can measure L1 browser-cache hits (transferSize == 0 ⇒ served from cache).
+            context.Response.Headers["Timing-Allow-Origin"] = "*";
             return Task.CompletedTask;
         });
 
