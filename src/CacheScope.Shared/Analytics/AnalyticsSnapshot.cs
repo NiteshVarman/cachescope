@@ -11,4 +11,7 @@ public sealed record AnalyticsSnapshot
     public double DatabaseAverageQueryTimeMs { get; init; }
 
     public required IReadOnlyList<MetricsTimelinePoint> Timeline { get; init; }
+
+    /// <summary>L0 edge stats from Cloudflare (out-of-band, aggregated). Null/NotConfigured locally.</summary>
+    public EdgeStatsSnapshot? CloudflareEdge { get; init; }
 }

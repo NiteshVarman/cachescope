@@ -42,12 +42,28 @@ export interface MetricsTimelinePoint {
   databaseQueriesPerSecond: number;
 }
 
+export interface EdgeStatsSnapshot {
+  configured: boolean;
+  hit: number;
+  miss: number;
+  expired: number;
+  revalidated: number;
+  dynamic: number;
+  none: number;
+  total: number;
+  edgeHitRatio: number;
+  windowMinutes: number;
+  updatedAt?: string | null;
+  message?: string | null;
+}
+
 export interface AnalyticsSnapshot {
   stats: LiveStatsSnapshot;
   databaseQueriesExecuted: number;
   databaseQueriesPrevented: number;
   databaseAverageQueryTimeMs: number;
   timeline: MetricsTimelinePoint[];
+  cloudflareEdge?: EdgeStatsSnapshot | null;
 }
 
 // ---- Traffic generator contracts (mirror CacheScope.Shared.Traffic) ----

@@ -11,14 +11,15 @@ public static class AnalyticsEndpoints
     {
         var group = app.MapGroup("/api/analytics");
 
-        group.MapGet("/", (ILiveStats stats, IDatabaseMetrics db, IMetricsTimeline timeline) =>
+        group.MapGet("/", (ILiveStats stats, IDatabaseMetrics db, IMetricsTimeline timeline, IEdgeStatsCache edge) =>
             Results.Ok(new AnalyticsSnapshot
             {
                 Stats = stats.Snapshot(),
                 DatabaseQueriesExecuted = db.QueriesExecuted,
                 DatabaseQueriesPrevented = db.QueriesPrevented,
                 DatabaseAverageQueryTimeMs = db.AverageQueryTimeMs,
-                Timeline = timeline.Recent()
+                Timeline = timeline.Recent(),
+                CloudflareEdge = edge.Current
             }))
             .WithName("GetAnalytics");
 
