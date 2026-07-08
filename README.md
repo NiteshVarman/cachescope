@@ -4,6 +4,10 @@
 
 🔗 **Live:** [cachescope.dev](https://cachescope.dev) &nbsp;·&nbsp; **API:** [api.cachescope.dev](https://api.cachescope.dev/health)
 
+> 📖 **New to the project? Read the [Engineering Wiki](docs/README.md)** — a from-first-principles
+> handbook (architecture, every file, the request lifecycle, deployment, and an operations runbook)
+> that lets a brand-new engineer understand the entire system end to end.
+
 CacheScope is a production-inspired platform-engineering tool that **visualizes, analyzes, and simulates** the full lifecycle of a request as it travels through five caching layers. It is deliberately **not** a CRUD app — its purpose is to make cache behavior *observable*: where every request is served, how caching reduces latency and database load, and how the system behaves under configurable synthetic traffic.
 
 Every request emits a trace (which layer served it, latency, hit/miss, correlation id) that streams **live** to an Angular dashboard over SignalR, alongside real-time analytics, a load-testing traffic generator, runtime cache controls, and a cache-stampede demonstration.
