@@ -18,6 +18,6 @@ public enum CacheLayer
     /// <summary>L3 — Distributed Redis cache.</summary>
     Redis = 3,
 
-    /// <summary>L4 — Azure SQL database (the source of truth / fallback).</summary>
+    /// <summary>L4 — embedded SQLite database (the source of truth / fallback).</summary>
     Database = 4
 }

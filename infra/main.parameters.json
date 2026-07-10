@@ -3,7 +3,6 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "appName": { "value": "cachescope" },
-    "sqlAdminLogin": { "value": "cachescopeadmin" },
     "containerImage": { "value": "ghcr.io/YOUR_GITHUB_USERNAME/cachescope-host:latest" },
     "ghcrUsername": { "value": "YOUR_GITHUB_USERNAME" }
   }

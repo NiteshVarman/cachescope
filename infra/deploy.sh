@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 # Provision (or update) all CacheScope infrastructure in one resource group.
+# L4 is embedded SQLite in the API container, so there is NO database password.
 # Usage:
 #   RG=cachescope-rg LOCATION=centralindia \
-#   SQL_PW='<strong-password>' GHCR_USER='<github-user>' GHCR_TOKEN='<pat>' \
+#   GHCR_USER='<github-user>' GHCR_TOKEN='<pat>' \
 #   IMAGE='ghcr.io/<user>/cachescope-host:latest' ./infra/deploy.sh
+#   (GHCR_USER/GHCR_TOKEN are optional when the image is public.)
 set -euo pipefail
 
 RG="${RG:-cachescope-rg}"
 LOCATION="${LOCATION:-centralindia}"
-: "${SQL_PW:?set SQL_PW}"
-: "${GHCR_USER:?set GHCR_USER}"
-: "${GHCR_TOKEN:?set GHCR_TOKEN}"
 : "${IMAGE:?set IMAGE}"
 
 echo "Creating resource group $RG in $LOCATION..."
@@ -20,7 +19,7 @@ echo "Deploying infrastructure (Bicep)..."
 az deployment group create \
   -g "$RG" \
   -f infra/main.bicep \
-  -p sqlAdminPassword="$SQL_PW" ghcrUsername="$GHCR_USER" ghcrToken="$GHCR_TOKEN" containerImage="$IMAGE" \
+  -p ghcrUsername="${GHCR_USER:-}" ghcrToken="${GHCR_TOKEN:-}" containerImage="$IMAGE" \
   -o table
 
 echo "Done. API FQDN:"

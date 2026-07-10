@@ -4,8 +4,8 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 namespace CacheScope.Host.HealthChecks;
 
 /// <summary>
-/// Readiness check for Azure SQL. Note: against a paused serverless database the first
-/// probe triggers a resume and can take tens of seconds — this is expected, not a fault.
+/// Readiness check for the L4 database (embedded SQLite). Confirms the DbContext can open the
+/// database file; since SQLite is in-process this is fast and has no cold-start behaviour.
 /// </summary>
 public sealed class SqlHealthCheck(CacheScopeDbContext db) : IHealthCheck
 {

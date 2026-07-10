@@ -91,7 +91,7 @@ has the data:
                   ├─────────────────────────────┤
                   │ L3  Redis (shared cache)    │   a separate cache server
                   ├─────────────────────────────┤
- slowest, truth   │ L4  Database (Azure SQL)    │   the source of truth, on disk
+ slowest, truth   │ L4  Database (SQLite)       │   the source of truth, on disk
                   └─────────────────────────────┘
 ```
 

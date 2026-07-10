@@ -99,19 +99,21 @@ lives (a subtle class of "silent cache miss" bugs avoided).
   no`) — pure cache; data is lost on Redis restart (fine — it just re-warms from SQL).
 - **What if removed:** cross-instance sharing and restart-durability disappear; more load reaches L4.
 
-## 4.6 L4 — Database (Azure SQL, the source of truth)
+## 4.6 L4 — Database (embedded SQLite, the source of truth)
 
-- **What/where:** a **relational database** (Azure SQL in the cloud; SQL Server in a container
-  locally). The `Products` table is the permanent, authoritative store.
+- **What/where:** a **relational database** — **SQLite**, a single file that lives *inside* the API
+  process (both locally and in the cloud). The `Products` table is the authoritative store. Because
+  the file is created and re-seeded on boot, it's ephemeral (a fresh, cost-free DB every start).
 - **Accessed via EF Core:** [`ProductStore`](../src/CacheScope.Database/ProductStore.cs) runs
   `SELECT ... WHERE Id = @id` through Entity Framework Core, records the real query time into
   [`DatabaseMetrics`](../src/CacheScope.Database/DatabaseMetrics.cs), and can add an optional
   **simulated latency** so the cache-vs-DB gap is visible in demos.
 - **The ROI metric:** `DatabaseMetrics` tracks **queries executed** vs. **queries prevented** (a
   prevented query = a cache hit at L2/L3). This number *is* the business case for caching.
-- **Serverless & auto-pause in the cloud:** the Azure SQL database sleeps when idle and wakes on the
-  first query (cheap; but the first query after a pause is slow — a real behaviour, see
-  [Chapter 11](11-operations-runbook.md)).
+- **Why SQLite (in-process):** it needs no separate database server, no connection credentials, and
+  no cloud bill — the schema and 100 seed products are created at startup (see
+  [Chapter 11](11-operations-runbook.md)). The trade-off is that data is not durable across restarts,
+  which is exactly what we want for a demo whose DB is just "something slow to cache in front of."
 - **What if removed:** there is no source of truth — nothing to cache. This is the one layer you
   cannot remove.
 

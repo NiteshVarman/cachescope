@@ -78,18 +78,17 @@ dependency-inversion structure collapses into a tangle of direct references.
 - **`CacheScopeDbContext.cs`** — the EF Core **DbContext** (your typed gateway to the database). It
   declares `DbSet<Product> Products` and configures the model (key, max lengths, precision) and the
   seed data in `OnModelCreating`.
-- **`ProductSeed.cs`** — deterministically generates 100 products (fixed timestamps so it can live
-  inside an EF migration). 100 gives the traffic patterns room (hot keys, top-N, Zipf).
+- **`ProductSeed.cs`** — deterministically generates 100 products (fixed timestamps so the seed is
+  stable across boots). 100 gives the traffic patterns room (hot keys, top-N, Zipf).
 - **`IProductStore.cs` / `ProductStore.cs`** — the L4 accessor: `GetByIdAsync`, `GetAllIdsAsync`,
   `UpdateAsync`. Each measures its own elapsed time and records it into `IDatabaseMetrics`, plus an
   optional `SimulatedQueryLatencyMs` delay to make the demo dramatic.
 - **`DatabaseMetrics.cs`** — thread-safe (`Interlocked`) counters: queries executed, **queries
   prevented**, total/average query time.
 - **`DatabaseOptions.cs`** — connection string section + the simulated-latency knob.
-- **`CacheScopeDbContextFactory.cs`** — a *design-time* factory so `dotnet ef` tooling can build the
-  model for migrations without running the Host's startup.
-- **`Migrations/`** — the generated schema (`InitialCreate`) + model snapshot. A **migration** is a
-  versioned description of the database schema; `MigrateAsync()` applies it at startup.
+- **No migrations / design-time factory:** because L4 is embedded SQLite that's rebuilt on every
+  boot, the schema is created directly from the model with `EnsureCreatedAsync()` at startup — there
+  are no `Migrations/` and no `dotnet ef` design-time factory to maintain.
 - **`DatabaseServiceCollectionExtensions.cs`** — `AddDatabaseLayer(config)`: registers the DbContext
   (scoped), the store (scoped), and the metrics (singleton).
 
@@ -178,8 +177,9 @@ runner (singletons). Lifetimes are explained in [Chapter 08](08-concurrency-and-
 ## 6.9 CacheScope.Host — the composition root
 
 - **`Program.cs`** — the entry point (top-level statements). Builds config + the DI container,
-  registers OpenTelemetry, calls every `Add*` extension, configures CORS/health/OpenAPI, applies EF
-  migrations at startup, and maps all the endpoint groups + the SignalR hub. Walked line-by-line in
+  registers OpenTelemetry, calls every `Add*` extension, configures CORS/health/OpenAPI, creates the
+  embedded SQLite schema + seed at startup (`EnsureCreatedAsync()`), and maps all the endpoint groups
+  + the SignalR hub. Walked line-by-line in
   [Chapter 07](07-technologies-explained.md) (ASP.NET Core) and [Chapter 08](08-concurrency-and-internals.md) (DI).
 - **`Middleware/CorrelationIdMiddleware.cs`** — request identity + response headers (see
   [Chapter 05](05-request-lifecycle.md)).

@@ -136,7 +136,8 @@ stays idle enough to survive traffic spikes.
 ## 2.7 Databases, SQL, tables, queries, indexes
 
 - A **database** is a program that stores data **persistently** (on disk) and lets you query it
-  reliably. CacheScope uses a **relational database** (Azure SQL / SQL Server).
+  reliably. CacheScope uses **SQLite**, a lightweight embedded **relational database** (a single
+  file inside the app), so there's no separate database server or cost.
 - Data lives in **tables** (like spreadsheets): rows and columns. CacheScope has a `Products` table
   with columns `Id, Name, Category, Price, Stock, Version, UpdatedAt`.
 - **SQL** (Structured Query Language) is how you ask a database for data:
@@ -187,9 +188,10 @@ stays idle enough to survive traffic spikes.
   you a running service. You pay for what you use, and the provider handles the hardware, power,
   networking, and much of the maintenance.
 - **PaaS vs. self-hosted:** a **managed service** (PaaS, Platform-as-a-Service) is one the provider
-  operates for you (e.g. **Azure SQL Database** — you get a database, Microsoft runs it). A
-  **self-hosted** service is one you run yourself inside a container you control (e.g. CacheScope
-  runs **Redis** as its own container rather than using a managed Redis service).
+  operates for you (e.g. **Azure Container Apps** — you hand Microsoft a container image and it runs
+  it). A **self-hosted** service is one you run yourself inside a container you control (e.g.
+  CacheScope runs **Redis** as its own container rather than using a managed Redis service, and keeps
+  L4 as an in-process SQLite file rather than a managed database).
 - **CDN** (Content Delivery Network) — a global network of servers near users that caches content at
   the "edge" (close to users) so responses come from a nearby city instead of a distant origin
   server. **Cloudflare** is CacheScope's CDN, and its edge cache is **L0**.
@@ -216,7 +218,8 @@ to run* (runtime, libraries, config) into one isolated unit that runs identicall
 
 **Why CacheScope uses this:** the API is built into a Docker image, pushed to GHCR, and Azure runs
 that image as a container. The *exact same image* runs on a laptop (via `docker compose`) and in the
-cloud — no "works on my machine." Redis and SQL Server also run as containers locally.
+cloud — no "works on my machine." Redis also runs as a container locally; the database is embedded
+SQLite inside the app (no separate DB container).
 
 ## 2.12 What .NET and C# are
 

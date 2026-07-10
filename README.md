@@ -22,7 +22,7 @@ Every request emits a trace (which layer served it, latency, hit/miss, correlati
 | **L1** | Browser cache | Client | client-side **Resource Timing** probe |
 | **L2** | Application memory cache | In-process (`IMemoryCache`) | Directly measured in the pipeline |
 | **L3** | Distributed cache | Redis | Directly measured in the pipeline |
-| **L4** | Database (source of truth) | Azure SQL | Directly measured in the pipeline |
+| **L4** | Database (source of truth) | Embedded SQLite (in the API container) | Directly measured in the pipeline |
 
 A request checks each layer in order and is served by the **first hit**; misses cascade down to the database and repopulate the layers on the way back up (cache-aside).
 
@@ -41,7 +41,7 @@ flowchart LR
       RED[(Redis container · L3)]
       HUB[SignalR TraceHub]
     end
-    SQL[(Azure SQL · L4)]
+    SQL[(Embedded SQLite · L4)]
     NG[Angular + Material dashboard]
 
     B --> CF --> API
@@ -102,7 +102,7 @@ Being precise about this, because it matters for interpreting the demo:
 | Realtime | SignalR (self-hosted) |
 | Memory cache (L2) | `IMemoryCache` |
 | Distributed cache (L3) | Redis |
-| Database (L4) | Azure SQL Database |
+| Database (L4) | Embedded SQLite (in-process, ephemeral, re-seeded on boot) |
 | Edge / CDN (L0) | Cloudflare |
 | Hosting | Azure Container Apps |
 | Frontend hosting | Cloudflare |
@@ -125,7 +125,7 @@ Being precise about this, because it matters for interpreting the demo:
 │   ├── CacheScope.MemoryCache/        # L2
 │   ├── CacheScope.RedisCache/         # L3
 │   ├── CacheScope.Cloudflare/         # L0 integration (edge purge, header reading)
-│   ├── CacheScope.Database/           # L4 (EF Core, migrations, seed)
+│   ├── CacheScope.Database/           # L4 (EF Core + SQLite, schema+seed created on boot)
 │   ├── CacheScope.Analytics/          # rolling stats, percentiles, timeline, detail store
 │   ├── CacheScope.TrafficGenerator/   # load-generation engine
 │   ├── CacheScope.Realtime/           # SignalR hub + broadcasters
@@ -192,10 +192,10 @@ Unit tests cover the load-bearing logic — cache-aside / write-through orchestr
 
 The platform runs on Azure (API) with Cloudflare in front (edge + frontend hosting).
 
-**1 — Azure infrastructure** (Container Apps environment, self-hosted Redis, Azure SQL, Application Insights):
+**1 — Azure infrastructure** (Container Apps environment, self-hosted Redis, Application Insights; L4 is embedded SQLite in the API container — no managed database):
 
 ```bash
-RG=cachescope-rg LOCATION=centralindia SQL_PW='<strong-pw>' \
+RG=cachescope-rg LOCATION=centralindia \
 IMAGE='ghcr.io/<user>/cachescope-host:latest' ./infra/deploy.sh
 # public GHCR image needs no registry credentials; for a private image add GHCR_USER + GHCR_TOKEN
 ```

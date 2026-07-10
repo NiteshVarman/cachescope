@@ -5,13 +5,13 @@
 //   - Log Analytics + Application Insights (telemetry sink for OpenTelemetry)
 //   - Container Apps managed environment
 //   - Redis as a self-hosted container app (L3)      -> $0, no managed Redis
-//   - Azure SQL, serverless with auto-pause (L4)      -> ~$0 when idle
+//   - L4 is embedded SQLite inside the API container   -> $0, no managed database
 //   - API container app pulling its image from GHCR    -> $0, no ACR
 //
 // Deploy:
 //   az deployment group create -g <rg> -f infra/main.bicep \
 //     -p infra/main.parameters.json \
-//     -p sqlAdminPassword=<secret> ghcrUsername=<user> ghcrToken=<pat> containerImage=<img>
+//     -p ghcrUsername=<user> ghcrToken=<pat> containerImage=<img>
 // ============================================================================
 
 @description('Deployment region.')
@@ -30,22 +30,16 @@ param ghcrUsername string = ''
 @secure()
 param ghcrToken string = ''
 
-@description('Azure SQL administrator login.')
-param sqlAdminLogin string = 'cachescopeadmin'
-
-@description('Azure SQL administrator password.')
-@secure()
-param sqlAdminPassword string
-
 @description('Artificial DB latency (ms) so the L2/L3-vs-L4 gap and the stampede demo are visible. Demo knob.')
 param simulatedQueryLatencyMs int = 45
+
+@description('SQLite connection string for L4 (a file inside the container; ephemeral, re-seeded on boot).')
+param sqlConnectionString string = 'Data Source=/tmp/cachescope.db'
 
 var ghcrConfigured = !empty(ghcrToken)
 var suffix = uniqueString(resourceGroup().id)
 var redisAppName = '${appName}-redis'
 var apiAppName = '${appName}-api'
-var sqlServerName = '${appName}-sql-${suffix}'
-var sqlDbName = 'CacheScope'
 
 // ---------------------------------------------------------------------------
 // Observability: Log Analytics + workspace-based Application Insights.
@@ -119,49 +113,15 @@ resource redis 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // ---------------------------------------------------------------------------
-// L4 — Azure SQL, serverless with auto-pause after 60 min idle. You pay storage
-// (pennies) while paused; the first query after a pause triggers a resume.
+// L4 — embedded SQLite. There is NO managed database resource: the source of
+// truth is a SQLite file inside the API container, created and seeded on boot.
+// This keeps the database cost at $0 (a managed DB, or a self-hosted DB
+// container that can't scale to zero, would incur ongoing charges).
 // ---------------------------------------------------------------------------
-resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
-  name: sqlServerName
-  location: location
-  properties: {
-    administratorLogin: sqlAdminLogin
-    administratorLoginPassword: sqlAdminPassword
-    minimalTlsVersion: '1.2'
-    publicNetworkAccess: 'Enabled'
-  }
-}
-
-// Allow other Azure services (the container app) to reach the SQL server.
-resource sqlFirewallAzure 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = {
-  parent: sqlServer
-  name: 'AllowAzureServices'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
-  }
-}
-
-resource sqlDb 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
-  parent: sqlServer
-  name: sqlDbName
-  location: location
-  sku: {
-    name: 'GP_S_Gen5_1'   // General Purpose, serverless, 1 vCore max
-    tier: 'GeneralPurpose'
-  }
-  properties: {
-    autoPauseDelay: 60                 // minutes idle before auto-pause
-    minCapacity: json('0.5')           // vCores when active
-    maxSizeBytes: 2147483648           // 2 GB — plenty for the demo dataset
-    zoneRedundant: false
-  }
-}
 
 // ---------------------------------------------------------------------------
 // API container app. Pulls from GHCR, exports telemetry to App Insights,
-// reaches Redis and SQL over the environment's internal network.
+// reaches Redis over the environment's internal network. L4 is in-process SQLite.
 // ---------------------------------------------------------------------------
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
   name: apiAppName
@@ -185,7 +145,6 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       secrets: concat(ghcrConfigured ? [
         { name: 'ghcr-token', value: ghcrToken }
       ] : [], [
-        { name: 'sql-connection', value: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=${sqlDbName};User ID=${sqlAdminLogin};Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;' }
         { name: 'appinsights-connection', value: appInsights.properties.ConnectionString }
       ])
     }
@@ -199,7 +158,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', secretRef: 'appinsights-connection' }
             { name: 'ConnectionStrings__Redis', value: '${redisAppName}:6379' }
-            { name: 'ConnectionStrings__Sql', secretRef: 'sql-connection' }
+            { name: 'ConnectionStrings__Sql', value: sqlConnectionString }
             { name: 'Database__SimulatedQueryLatencyMs', value: string(simulatedQueryLatencyMs) }
           ]
           probes: [
@@ -221,5 +180,4 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 output apiFqdn string = api.properties.configuration.ingress.fqdn
-output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output appInsightsConnectionString string = appInsights.properties.ConnectionString

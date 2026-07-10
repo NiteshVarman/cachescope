@@ -30,18 +30,19 @@ CacheScope has **two deployable pieces** and several backing services:
  │                                                └───────────┬───────────────┘  │
  │                                                            │                   │
  │                                             ┌──────────────▼─────────────┐    │
- │                                             │ Azure SQL Database (L4)     │    │
+ │                                             │ SQLite file, in-process (L4)│    │
  │                                             └────────────────────────────┘    │
  └────────────────────────────────────────────────────────────────────────────┘
 ```
 
 - **Piece 1 — the backend API** (`CacheScope.Host`): an ASP.NET Core process running in an Azure
-  container. It *is* L2 (holds the in-process memory cache), talks to the Redis container (L3) and
-  Azure SQL (L4), and pushes live updates over SignalR.
+  container. It *is* L2 (holds the in-process memory cache) and L4 (an embedded SQLite file lives
+  inside the same process), talks to the Redis container (L3), and pushes live updates over SignalR.
 - **Piece 2 — the frontend** (`web/`): an Angular dashboard, built to static files and hosted on
   Cloudflare, served at `cachescope.dev`.
-- **Backing services:** Cloudflare (DNS + edge cache L0 + UI hosting), Azure SQL (L4), a Redis
-  container (L3), Application Insights (telemetry), GitHub Container Registry (image storage).
+- **Backing services:** Cloudflare (DNS + edge cache L0 + UI hosting), a Redis container (L3),
+  Application Insights (telemetry), GitHub Container Registry (image storage). L4 is embedded SQLite
+  inside the API process — no external database service.
 
 ## 3.2 Architectural style: the "modular monolith"
 
@@ -72,7 +73,7 @@ All projects live under [`src/`](../src). One is runnable (`Host`); the rest are
 | **CacheScope.Shared** | Pure contracts + data types (interfaces, DTOs, enums). No logic, no dependencies. | The **dependency sink**: everyone depends on it; it depends on nothing. This is what lets modules talk through *abstractions* instead of each other. |
 | **CacheScope.MemoryCache** | L2 — wraps .NET `IMemoryCache`. | Isolates the in-process cache behind an interface (`IMemoryCacheLayer`) so it's swappable and testable. |
 | **CacheScope.RedisCache** | L3 — wraps Redis (`StackExchange.Redis`). | Isolates distributed-cache concerns: connection, serialization, key prefixing, flush/expire. |
-| **CacheScope.Database** | L4 — EF Core `DbContext`, the product store, DB metrics, migrations, seed. | Owns the source of truth and the "queries executed vs prevented" metric. |
+| **CacheScope.Database** | L4 — EF Core `DbContext` over embedded SQLite, the product store, DB metrics, schema+seed created on boot. | Owns the source of truth and the "queries executed vs prevented" metric. |
 | **CacheScope.Cloudflare** | L0 integration — edge purge + edge-stats poller (Cloudflare API). | Isolates the one component that talks to an external HTTP API; safe no-op when unconfigured. |
 | **CacheScope.Analytics** | Rolling stats, latency percentiles, time-series, request-detail store. | Owns *measurement/aggregation* — separate from *collection* and *transport*. |
 | **CacheScope.TrafficGenerator** | The load-test engine (patterns, RPS, concurrency). | Encapsulates load generation; depends only on `Shared` abstractions, never on the pipeline internals. |

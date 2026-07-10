@@ -4,7 +4,7 @@ namespace CacheScope.Shared.Traffic;
 public enum TrafficPattern
 {
     ColdStart,      // flush all caches first — everything starts at the database
-    WarmCache,      // pre-warm caches (and resume serverless SQL) before load
+    WarmCache,      // pre-warm caches (and touch L4 once) before load
     Steady,         // constant rate
     Burst,          // alternating spikes and lulls
     HotKey,         // every request targets a single key

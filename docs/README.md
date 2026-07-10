@@ -42,9 +42,9 @@ It is deployed and live at **https://cachescope.dev**.
    ┌──────────────────┐     ┌───────────────────────────────────────────────┐
    │  Cloudflare (L0) │     │            Azure Container Apps                 │
    │  global edge     │────▶│  ASP.NET Core API  ── IMemoryCache (L2)         │
-   │  + hosts the UI  │     │        │                                        │
-   └──────────────────┘     │        ├──▶ Redis container (L3)                │
-             ▲              │        └──▶ Azure SQL (L4, source of truth)     │
+   │  + hosts the UI  │     │        │            └─ SQLite file (L4, in-process) │
+   └──────────────────┘     │        └──▶ Redis container (L3)                │
+             ▲              │                                                 │
              │ WebSocket    │  SignalR pushes live traces to the dashboard    │
    Angular dashboard ◀──────┤  OpenTelemetry pushes traces to App Insights    │
                             └───────────────────────────────────────────────┘

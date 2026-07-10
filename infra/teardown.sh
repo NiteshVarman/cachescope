@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Delete the entire CacheScope resource group so idle cost returns to ~zero.
-# The serverless SQL database and scale-to-zero container app already cost ~nothing
-# when idle, but a full teardown guarantees it. Re-run deploy.sh to bring it back.
+# There is no managed database (L4 is embedded SQLite) and the container app scales to
+# zero, so idle cost is already ~nothing, but a full teardown guarantees it.
+# Re-run deploy.sh to bring it back.
 # Usage:  RG=cachescope-rg ./infra/teardown.sh
 set -euo pipefail
 

@@ -13,7 +13,8 @@ public sealed class TrafficSupport(
     public Task<IReadOnlyList<int>> GetKeyUniverseAsync(CancellationToken ct = default) =>
         store.GetAllIdsAsync(ct);
 
-    // Any query resumes a paused serverless database.
+    // Warms the L4 path before a run. With embedded SQLite there is no cold start to resume, but
+    // this still touches the DB once so the first measured query isn't skewed by JIT/first-touch.
     public Task ResumeDatabaseAsync(CancellationToken ct = default) => store.GetAllIdsAsync(ct);
 
     public void ClearMemory() => memory.Clear();

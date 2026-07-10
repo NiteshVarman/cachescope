@@ -12,9 +12,9 @@ public static class DatabaseServiceCollectionExtensions
     {
         services.Configure<DatabaseOptions>(config.GetSection(DatabaseOptions.SectionName));
 
-        var connectionString = config.GetConnectionString("Sql");
-        services.AddDbContext<CacheScopeDbContext>(o =>
-            o.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
+        // Embedded SQLite. Default to a local file; container overrides via ConnectionStrings:Sql.
+        var connectionString = config.GetConnectionString("Sql") ?? "Data Source=cachescope.db";
+        services.AddDbContext<CacheScopeDbContext>(o => o.UseSqlite(connectionString));
 
         // Metrics are process-wide, so a singleton; the store is scoped to the DbContext.
         services.AddSingleton<IDatabaseMetrics, DatabaseMetrics>();

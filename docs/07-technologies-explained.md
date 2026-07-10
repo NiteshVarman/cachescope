@@ -42,13 +42,14 @@ Each technology follows the same shape: **What? · Why do we need it? · Why cho
   instead of raw SQL.
 - **Why needed:** to read/write the `Products` table without hand-writing and hand-maintaining SQL
   strings, and to keep the schema in code.
-- **Why chosen:** it's the standard .NET ORM, with **migrations** (versioned schema) and **seeding**.
+- **Why chosen:** it's the standard .NET ORM, and its **SQLite** provider lets us run the whole L4
+  in-process with no external database.
 - **How it works:** you define a `DbContext` with `DbSet<Product>`. `db.Products.FirstOrDefaultAsync(p => p.Id == 42)`
-  is translated to `SELECT ... WHERE Id = 42`. **Migrations** are generated schema-change scripts;
-  `MigrateAsync()` applies them so the DB matches your model. **Indexes** (the primary key here) make
-  lookups fast.
-- **Here:** `CacheScope.Database` — the `CacheScopeDbContext`, `ProductStore`, the `InitialCreate`
-  migration, and `HasData` seeding of 100 products.
+  is translated to `SELECT ... WHERE Id = 42`. Instead of migrations, the app calls
+  `EnsureCreatedAsync()` at startup to build the schema directly from the model, then seeds it.
+  **Indexes** (the primary key here) make lookups fast.
+- **Here:** `CacheScope.Database` — the `CacheScopeDbContext`, `ProductStore`, and `HasData` seeding
+  of 100 products created on boot via `EnsureCreatedAsync()`.
 - **If removed:** you'd write and maintain raw SQL + manual schema management.
 
 ## 7.4 Redis (via StackExchange.Redis)
@@ -132,7 +133,8 @@ Each technology follows the same shape: **What? · Why do we need it? · Why cho
   container. *Why (not Azure Functions):* Functions are short-lived/stateless and scale per-invocation;
   CacheScope holds in-memory state, runs background services, and serves a persistent WebSocket — it
   needs a long-lived single service.
-- **Azure SQL Database** — a managed relational database (L4); serverless with auto-pause.
+- **SQLite (embedded)** — the L4 relational database, a single file inside the API process; no
+  managed database service and no cloud DB bill.
 - **Application Insights + Log Analytics** — telemetry store (7.6).
 - **(Registry)** the image is stored in **GitHub Container Registry**, which Azure pulls from.
 

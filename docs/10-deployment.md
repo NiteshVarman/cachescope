@@ -38,7 +38,7 @@ Everything needed to run locally is a container, orchestrated by
 [`docker-compose.yml`](../docker-compose.yml):
 
 ```bash
-# from the repo root — starts Redis (L3) + SQL Server (L4) + the Host (API), wired together
+# from the repo root — starts Redis (L3) + the Host (API); L4 is embedded SQLite inside the Host
 docker compose up --build          # API on http://localhost:5199
 
 # the frontend (in another terminal)
@@ -47,10 +47,10 @@ npm install                        # first time only
 npm start                          # dashboard on http://localhost:4200
 ```
 
-- `docker compose` reads the compose file and starts three containers with health checks and
-  dependency ordering (the Host waits for Redis + SQL to be healthy).
-- Locally, **both** Redis and SQL are containers (official `redis` and `mssql/server` images from
-  Docker Hub). In the cloud, only Redis is a container; SQL is the managed Azure SQL service.
+- `docker compose` reads the compose file and starts two containers with health checks and
+  dependency ordering (the Host waits for Redis to be healthy).
+- Redis runs as a container (official `redis` image) both locally and in the cloud. L4 is embedded
+  SQLite living inside the Host process — there is no separate database container or service.
 - The Angular dev server (`ng serve`) serves the UI on `:4200` and calls the local API on `:5199`
   (the API's dev CORS allows any localhost origin).
 
@@ -71,8 +71,7 @@ Everything lives in one **resource group** (a folder for related Azure resources
 | **cachescope-env** | Container Apps **Environment** | the shared network/logging boundary that *hosts* the container apps |
 | **cachescope-api** | Container **App** running the API image (from GHCR) | the .NET backend; public HTTPS ingress; custom domain `api.cachescope.dev`; **single replica** |
 | **cachescope-redis** | Container **App** running the `redis` image | L3 cache; internal-only |
-| **cachescope-sql-…** | Azure SQL **logical server** | hosts databases |
-| **CacheScope** (on that server) | Azure SQL **Database** | L4 source of truth; serverless, auto-pause |
+| _(none — L4 is in-process)_ | Embedded **SQLite** inside the API container | L4 source of truth; created + seeded on boot, no separate resource or cost |
 | **cachescope-ai-…** | **Application Insights** | telemetry store (traces/metrics/logs) |
 | **cachescope-logs-…** | **Log Analytics workspace** | the underlying log store behind App Insights |
 
@@ -83,9 +82,9 @@ Diagram:
    ┌──────────────────────────────────────────────────────────────┐
    │  cachescope-env  (Container Apps environment)                 │
    │   ├── cachescope-api    (your image; external HTTPS ingress)  │
+   │   │      └── embedded SQLite file = L4 (in-process, on boot)   │
    │   └── cachescope-redis  (redis image; internal only)          │
    │                                                                │
-   │  cachescope-sql-…  (SQL server) ── CacheScope (database, L4)   │
    │  cachescope-ai-…   (App Insights) ── cachescope-logs-… (Log Analytics) │
    └──────────────────────────────────────────────────────────────┘
 ```
@@ -121,16 +120,15 @@ Register the required resource providers once (Azure needs them enabled), then d
 ```bash
 az provider register -n Microsoft.App
 az provider register -n Microsoft.OperationalInsights
-az provider register -n Microsoft.Sql
 
 # one command provisions the whole topology (helper wraps the Bicep):
-RG=cachescope-rg LOCATION=centralindia SQL_PW='<strong-pw>' \
+RG=cachescope-rg LOCATION=centralindia \
 IMAGE='ghcr.io/<user>/cachescope-host:latest' ./infra/deploy.sh
 ```
 
 This creates every resource in [10.3](#103-the-azure-resources-what-each-one-is) and prints the API's
-`*.azurecontainerapps.io` FQDN. On first boot the app runs **EF migrations** to create the schema and
-seed 100 products. `./infra/teardown.sh` deletes everything.
+`*.azurecontainerapps.io` FQDN. On first boot the app calls **`EnsureCreatedAsync()`** to build the
+embedded SQLite schema and seed 100 products. `./infra/teardown.sh` deletes everything.
 
 Verify:
 ```bash
@@ -226,9 +224,10 @@ edge → Azure Container App → Redis → SQL), with SignalR over WebSocket and
 
 ## 10.10 Cost-control behaviours (architecture, not billing detail)
 
-The container app **scales to zero** when idle and the SQL database **auto-pauses**, so an idle
-deployment consumes almost nothing; the first request after idle triggers a cold start (see
-[Chapter 11](11-operations-runbook.md)). `infra/teardown.sh` removes everything when not needed.
+The container app **scales to zero** when idle, so an idle deployment consumes almost nothing; the
+first request after idle triggers a cold start (see [Chapter 11](11-operations-runbook.md)). There
+is **no database bill at all** — L4 is embedded SQLite inside the API container, not a managed
+service. `infra/teardown.sh` removes everything when not needed.
 
 ---
 

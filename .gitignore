@@ -20,3 +20,8 @@ appsettings.*.local.json
 .DS_Store
 Thumbs.db
 .idea/
+
+# SQLite database files (ephemeral, never commit)
+*.db
+*.db-shm
+*.db-wal

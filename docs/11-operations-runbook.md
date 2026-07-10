@@ -26,17 +26,18 @@ material).
 
 ## 11.2 Real production issues we hit (and the fix)
 
-### (a) First-boot migration failed silently → `Invalid object name 'Products'`
-- **Symptom:** after the very first cloud deploy, `/health` was 200 but `/api/products/{id}` returned
-  500 with `Invalid object name 'Products'`.
-- **Cause:** the serverless SQL database was **cold/paused** when the app booted; `MigrateAsync()`
-  threw; the startup code *catches and continues* (so a DB blip doesn't crash boot), so the schema was
-  never created.
-- **Fix:** with SQL now warm, roll a fresh revision so startup re-runs `MigrateAsync()` against a
-  ready DB. It succeeds and the schema persists (so it won't recur — a later cold start finds the
-  tables already there).
-- **Lesson:** startup migrations + a scale-to-zero/serverless DB need either a retry or a warm-up;
-  the swallow-and-continue guard means you must verify the schema actually applied.
+### (a) First-boot schema failed silently → `Invalid object name 'Products'`
+- **Symptom:** after the very first cloud deploy (back when L4 was managed Azure SQL), `/health` was
+  200 but `/api/products/{id}` returned 500 with `Invalid object name 'Products'`.
+- **Cause:** the serverless SQL database was **cold/paused** when the app booted; the startup schema
+  step threw; the startup code *catches and continues* (so a DB blip doesn't crash boot), so the
+  schema was never created.
+- **Fix at the time:** with SQL warm, roll a fresh revision so startup re-ran against a ready DB.
+- **Permanent fix:** L4 was moved to **embedded SQLite** (a file inside the API container). The
+  schema is now built in-process with `EnsureCreatedAsync()` against a local file that is always
+  "warm," so there is no external DB to be cold/paused and this failure mode is gone entirely.
+- **Lesson:** a startup schema step that depends on a scale-to-zero/serverless external DB needs a
+  retry or warm-up; removing the external dependency removes the failure mode outright.
 
 ### (b) Multi-replica state fragmentation
 - **Symptom:** started a 600-request traffic run, but `/api/traffic/status` reported a *different*
@@ -67,11 +68,12 @@ material).
 - **Lesson:** headers you add only take effect on the origin path until the edge cache is refreshed;
   purge after header changes.
 
-### (e) SQL serverless cold start
-- **Symptom:** the first request after a long idle is slow (tens of seconds).
-- **Cause:** the serverless DB auto-paused and must resume on the first query.
-- **Handling:** expected behaviour; the Warm Cache traffic pattern pre-resumes the DB; health checks
-  don't hammer it awake.
+### (e) Container app cold start (scale-to-zero)
+- **Symptom:** the first request after a long idle is slow (a few seconds).
+- **Cause:** the container app **scaled to zero** while idle and must spin a replica back up (and
+  rebuild the in-process SQLite DB on boot) before serving the first request.
+- **Handling:** expected behaviour; there is no external DB to resume any more, so the only cold
+  start is the container itself. Send a warm-up request (or the Warm Cache pattern) after idle.
 
 ## 11.3 How to modify safely (common tasks)
 

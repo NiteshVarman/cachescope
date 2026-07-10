@@ -130,7 +130,7 @@ public sealed class TrafficRunner(
 
     private async Task PrepareAsync(TrafficConfig config, CancellationToken ct)
     {
-        // Always wake a paused serverless DB so its cold-start doesn't skew latency.
+        // Always touch L4 once so first-query overhead doesn't skew latency.
         await WithScopeAsync(s => s.GetRequiredService<ITrafficSupport>().ResumeDatabaseAsync(ct));
 
         switch (config.Pattern)

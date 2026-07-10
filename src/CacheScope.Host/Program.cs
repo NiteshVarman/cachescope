@@ -101,9 +101,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 
-// Apply EF migrations at startup (dev + first cloud boot). Against a paused
-// serverless DB this triggers a resume; guarded so a DB outage doesn't crash boot.
-await ApplyMigrationsAsync(app);
+// Create the embedded SQLite schema + seed data at startup. The DB is ephemeral
+// (a file in the container), so it's built fresh on each boot from the EF model.
+await InitializeDatabaseAsync(app);
 
 // Liveness: is the process up? Readiness: are Redis + SQL reachable?
 app.MapHealthChecks("/health");
@@ -141,19 +141,23 @@ app.MapGet("/diagnostics/echo", (HttpContext ctx) =>
 
 app.Run();
 
-static async Task ApplyMigrationsAsync(WebApplication app)
+static async Task InitializeDatabaseAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<CacheScopeDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
     try
     {
-        await db.Database.MigrateAsync();
-        logger.LogInformation("Database migrations applied.");
+        // EnsureCreated builds the schema from the model and applies the HasData seed.
+        // (No migrations — the model is fixed and the SQLite DB is recreated each boot.)
+        await db.Database.EnsureCreatedAsync();
+        // WAL mode lets readers proceed while a write is in progress (fewer "database is locked").
+        await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+        logger.LogInformation("SQLite database created and seeded.");
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Database migration failed at startup; the app will still start.");
+        logger.LogError(ex, "Database initialization failed at startup; the app will still start.");
     }
 }
 
